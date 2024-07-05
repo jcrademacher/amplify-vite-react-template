@@ -1,0 +1,52 @@
+@import 'colors.scss';
+
+#nav {
+    // position: fixed;
+    // top: 0;
+    // left: 0;
+    // z-index: 999;
+    width: 100%;
+    height: 50px;
+    background-color: $primary;
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 0px 20px;
+    margin: 0px;
+    z-index: 999;
+    // box-shadow: 0px 2px 10px black;
+}
+
+.nav-item {
+    margin-left: 10px;
+}
+
+#basic-nav-dropdown {
+    color: white;
+}
+
+#signout-button {
+    position: absolute;
+    right: 10px;
+    
+    border-radius: 8px;
+    border: 1px solid $secondary;
+    padding: 4px 14px;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: $primary;
+    cursor: pointer;
+    transition: border-color 0.25s;
+    color: white;
+    
+    
+    &:hover {
+        border-color: white;
+    }
+    
+    &:focus,
+    &:focus-visible {
+        outline: 4px auto -webkit-focus-ring-color;
+    }
+}

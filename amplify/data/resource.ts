@@ -9,9 +9,43 @@ specifies that any user authenticated via an API key can "create", "read",
 const schema = a.schema({
   Todo: a
     .model({
-      content: a.string(),
+      content: a.string()
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.owner()]),
+
+  Schedule: a
+    .model({
+      name: a.string(),
+      year: a.integer(),
+      active: a.boolean(),
+      activities: a.hasMany('Activity','scheduleId')
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
+  Activity: a
+    .model({
+      scheduleId: a.id(),
+      schedule: a.belongsTo('Schedule','scheduleId'),
+      startTime: a.time().required(),
+      day: a.integer().required(),
+      shadow: a.boolean().required(), // 0 = no shadow, 1 = shadow
+      leg: a.integer().required(),
+      supportName: a.string(),
+      activityPrototypeId: a.id(),
+      activityPrototype: a.belongsTo('ActivityPrototype', 'activityPrototypeId')
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
+  ActivityPrototype: a
+    .model({
+      activities: a.hasMany('Activity', 'activityPrototypeId'),
+      name: a.string().required(),
+      duration: a.time().required(),
+      type: a.string().required(),
+      preferred_days: a.integer().array(),
+      required_days: a.integer().array()
+    })
+    .authorization((allow) => [allow.authenticated()])
 });
 
 export type Schema = ClientSchema<typeof schema>;

@@ -1,0 +1,71 @@
+/* The following block can be included in a custom.scss */
+// @import "../../node_modules/bootstrap/scss/bootstrap";
+
+
+// /* make the customizations */
+// $theme-colors: (
+//   "primary":    #003f2e,
+//   "secondary":  #5f7e70
+// );
+
+@import 'colors.scss';
+// $primary: map-get($map: "theme-colors", $key: "primary");
+
+/* import bootstrap to set changes */
+@import '../../node_modules/bootstrap/scss/bootstrap.scss';
+
+#main {
+    height: 100vh;
+    width: 100%;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+#root {
+    width: 100%;
+}
+
+#app-container {
+    flex-grow: 1;
+}
+
+body {
+    margin: 0;
+    background: $primary;
+    display: flex;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    height: 100vh;
+    width: 100vw;
+    justify-content: center;
+    align-items: center;
+}
+
+ul {
+    padding-inline-start: 0;
+    margin-block-start: 0;
+    margin-block-end: 0;
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    margin: 8px 0;
+    border: 1px solid black;
+    gap: 1px;
+    background-color: black;
+    border-radius: 8px;
+    overflow: auto;
+}
+
+li {
+    background-color: white;
+    padding: 8px;
+}
+
+li:hover {
+    background: #dadbf9;
+}
+
+a {
+    font-weight: 800;
+    text-decoration: none;
+}
