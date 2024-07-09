@@ -40,10 +40,11 @@ const schema = a.schema({
     .model({
       activities: a.hasMany('Activity', 'activityPrototypeId'),
       name: a.string().required(),
-      duration: a.time().required(),
+      duration: a.float().required(),
       type: a.string().required(),
-      preferred_days: a.integer().array(),
-      required_days: a.integer().array()
+      preferredDays: a.integer().array(),
+      requiredDays: a.integer().array(),
+      isRequired: a.boolean()
     })
     .authorization((allow) => [allow.authenticated()])
 });
@@ -53,7 +54,7 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "apiKey",
+    defaultAuthorizationMode: "userPool",
     // API Key is used for a.allow.public() rules
     apiKeyAuthorizationMode: {
       expiresInDays: 30,

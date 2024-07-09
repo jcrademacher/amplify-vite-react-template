@@ -8,6 +8,8 @@ import '@aws-amplify/ui-react/styles.css';
 import { Routes, Route } from "react-router-dom";
 import NavBar from './components/navbar.js';
 import HomePage from './pages/home-page.js';
+
+
 // const client = generateClient<Schema>();
 
 function App() {
@@ -29,7 +31,7 @@ function App() {
   // }
 
   return (  
-    <Authenticator hideSignUp>
+    <Authenticator>
       {({ signOut }) => {
 
         // const { authStatus } = useAuthenticator((context) => [context.authStatus, context.user]);
