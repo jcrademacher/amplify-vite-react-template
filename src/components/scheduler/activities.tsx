@@ -12,7 +12,14 @@ import { useState, useRef, useEffect } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import Form from 'react-bootstrap/Form';
 
-import { LocalActivity, GlobalActivity, GlobalActivityDragStatus, GlobalActivityState } from "./types";
+import {
+    LocalActivity,
+    GlobalActivity,
+    GlobalActivityDragStatus,
+    GlobalActivityState,
+    TimeMap,
+    Activity
+} from "./types";
 import { getTimes } from '.';
 import { ActivityPrototype, ActivityPrototypeMap } from "../../api/apiActivityPrototype";
 
@@ -21,125 +28,75 @@ import { range } from 'lodash';
 
 import { useDrag, useDrop } from 'react-dnd';
 
+export function addActivity<T extends Activity>(newAct: T, object: TimeMap<T>) {
+    object[newAct.startTime.toISOString()] = { ...newAct };
+}
 
+export function removeActivity<T extends Activity>(act: T, object: TimeMap<T>) {
+    delete object[act.startTime.toISOString()];
+}
 
-export const checkActivityCreate: (time: moment.Moment, dayView: number, actProto: ActivityPrototype, acts: LocalActivity[], gacts: GlobalActivity[]) => number = (time, dayView, actProto, acts, gacts) => {
-    const times = getTimes();
+export function updateActivity<T extends Activity>(newAct: T, object: TimeMap<T>) {
+    object[newAct.startTime.toISOString()] = newAct;
+}
 
-    let newActStartTime = time.clone();
-    let newActEndTime = newActStartTime.clone()
-    newActEndTime.add(actProto.duration, 'hours');
+const checkTimeDurationInObject: (startTime: moment.Moment, duration: number, object: TimeMap<LocalActivity> | TimeMap<GlobalActivity>) => boolean = (startTime, duration, object) => {
+    let timeCheck = startTime.clone();
 
-    let gact = gacts.find((el) => {
-        let startTime = el.startTime;
-        // let endTime = el.startTime.clone();
-        // endTime.add(el.duration,'hours');
+    for (let i = 0; i < 2 * duration; ++i) {
+        let key = timeCheck.toISOString();
 
-        return newActEndTime.diff(startTime) > 0 && newActStartTime.diff(startTime) < 0;
-    });
-
-    if (gact) {
-        return -1;
-    }
-
-    // console.log("Pre Start Time: ", newActStartTime.toString());
-
-    let schEndTime = times[times.length - 1].clone();
-    schEndTime.add(dayView - 1, 'days');
-    schEndTime.add(30, 'minutes'); // add to maintain consistency of inclusive start time, exclusive end time
-
-    let schStartTime = times[0].clone();
-    schStartTime.add(dayView - 1, 'days');
-
-    let insertAt = undefined;
-    let slotFlag = true;
-
-    for (let i = 0; i < acts.length; ++i) {
-        let act = acts[i];
-        // let nextAct = acts[i+1];
-
-        let actStartTime = act.startTime;
-        let actEndTime = actStartTime.clone().add(actProto.duration, 'hours');
-
-        // check that current activity can be slotted into gap, slotFlag indicates from previous iteration
-        // whether or not this new activity will overlap with previous
-        if (newActEndTime.diff(actStartTime) <= 0 && slotFlag) {
-            // insert activity 
-            insertAt = i;
-            break;
+        if (object && key in object) {
+            return false;
         }
-        else {
-            slotFlag = newActStartTime.diff(actEndTime) >= 0;
-        }
+
+        timeCheck.add(30, 'minutes');
     }
 
-    if (insertAt === undefined && slotFlag) {
-        insertAt = acts.length;
-    }
+    return true;
+}
 
-    // check for unscheduled activities and an addition to the end, checking for validity within schedule as well
-    if (insertAt !== undefined && newActStartTime.diff(schStartTime) >= 0 && newActEndTime.diff(schEndTime) <= 0) {
-        return insertAt;
+export const checkActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, acts: TimeMap<LocalActivity>, gacts: TimeMap<GlobalActivity>) => {
+    let canCreate = checkTimeDurationInObject(startTime, duration, acts);
+
+    let actEnd = startTime.clone();
+    actEnd.add(duration,'hours');
+
+    if(actEnd.diff(dayEnd) > 0) {
+        return false;
     }
-    else {
-        return -1;
-    }
+    
+    return canCreate;
+    
 };
 
 import { LocalActivityMap, ScheduleObjectTypes } from './types';
 
-export const checkGlobalActivityCreate = (newGact: GlobalActivity, actProtos: ActivityPrototypeMap, schActs: LocalActivityMap, gacts: GlobalActivity[]) => {
-    let newGactStartTime = newGact.startTime.clone();
-    let newGactEndTime = newGactStartTime.clone();
-    newGactEndTime.add(newGact.duration, "hours");
-
-    // first check for overlaps with existing scheduled activities
-    for (var key in schActs) {
-        let acts = schActs[key];
-
-        for (let i = 0; i < acts.length; ++i) {
-            let act = acts[i];
-
-            let actStartTime = act.startTime.clone();
-            let duration = actProtos[act.activityPrototypeId].duration;
-            let actEndTime = actStartTime.clone();
-            actEndTime.add(duration, "hours");
-
-            if ((actStartTime.diff(newGactStartTime) >= 0 && actStartTime.diff(newGactEndTime) < 0) ||
-                (actEndTime.diff(newGactStartTime)) > 0 && actEndTime.diff(newGactEndTime) <= 0) {
-                return -1;
-            }
-        }
+export const checkGlobalActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, actProtos: ActivityPrototypeMap, schActs: LocalActivityMap, gacts: TimeMap<GlobalActivity>) => {
+    // check against existin global activities
+    let canCreate = checkTimeDurationInObject(startTime, duration, gacts);
+    if (!canCreate) {
+        return false;
     }
 
-    let insertAt = undefined;
-    let slotFlag = true;
+    // then check for overlaps with existing scheduled activities
+    for (const key in actProtos) {
+        let actProtoDuration = actProtos[key].duration;
+        let thisActs = schActs[key];
 
-    // then check for overlaps with existing global activities and find where it should be inserted
-    for (let i = 0; i < gacts.length; ++i) {
-        let gactStartTime = gacts[i].startTime.clone();
-        let gactEndTime = gactStartTime.clone();
-        gactEndTime.add(gacts[i].duration, 'hours');
+        let canCreate = checkTimeDurationInObject(startTime, duration, thisActs);
+        if(!canCreate) return false;
 
-        if ((gactStartTime.diff(newGactStartTime) >= 0 && gactStartTime.diff(newGactEndTime) < 0) ||
-            (gactEndTime.diff(newGactStartTime) > 0 && gactEndTime.diff(newGactEndTime) <= 0)) {
-            return -1;
-        }
-        else if (newGactEndTime.diff(gactStartTime) <= 0 && slotFlag) {
-            // insert activity 
-            insertAt = i;
-            break;
-        }
-        else {
-            slotFlag = newGactStartTime.diff(gactEndTime) >= 0;
-        }
+        let timeBackCheck = startTime.clone()
+        timeBackCheck.subtract(actProtoDuration, 'hours');
+        timeBackCheck.add(30,'minutes');
+
+        canCreate = checkTimeDurationInObject(timeBackCheck, actProtoDuration, thisActs);
+        
+        if (!canCreate) return false;
     }
 
-    if (insertAt === undefined && slotFlag) {
-        insertAt = gacts.length;
-    }
-
-    return insertAt !== undefined ? insertAt : -1;
+    return true;
 }
 
 interface WorkareaProps {
@@ -153,15 +110,15 @@ interface WorkareaProps {
     handleCreateGlobalActivity: () => void,
 }
 
-export function Workarea({ 
-    id, 
-    time, 
-    handleCreate, 
-    handleMoveActivity, 
+export function Workarea({
+    id,
+    time,
+    handleCreate,
+    handleMoveActivity,
     handleMoveGlobalActivity,
-    state, 
-    setState, 
-    handleCreateGlobalActivity 
+    state,
+    setState,
+    handleCreateGlobalActivity
 }: WorkareaProps) {
     const originTime = state.originCell ? state.originCell[1] : undefined;
     const currentTime = state.currentCell ? state.currentCell[1] : undefined;
@@ -182,11 +139,11 @@ export function Workarea({
             accept: [ScheduleObjectTypes.LocalActivity, ScheduleObjectTypes.GlobalActivity],
             drop: (item: LocalActivity | GlobalActivity, monitor) => {
                 const itemType = monitor.getItemType();
-                if(itemType === ScheduleObjectTypes.LocalActivity) {
-                    handleMoveActivity(id,time,item as LocalActivity);
+                if (itemType === ScheduleObjectTypes.LocalActivity) {
+                    handleMoveActivity(id, time, item as LocalActivity);
                 }
-                else if(itemType === ScheduleObjectTypes.GlobalActivity) {
-                    handleMoveGlobalActivity(time,item as GlobalActivity);
+                else if (itemType === ScheduleObjectTypes.GlobalActivity) {
+                    handleMoveGlobalActivity(time, item as GlobalActivity);
                 }
             },
             collect: (monitor) => ({
@@ -235,14 +192,13 @@ export function Workarea({
 export interface ScheduledActivityProps {
     activeAct: LocalActivity,
     timeIndex: number,
-    actIndex: number,
     duration: number,
     groupSize: number,
-    handleSave: (newAct: LocalActivity, index: number) => void,
-    handleDelete: (newAct: LocalActivity, index: number) => void
+    handleSave: (newAct: LocalActivity) => void,
+    handleDelete: (newAct: LocalActivity) => void
 }
 
-export function ScheduledActivity({ activeAct, actIndex, timeIndex, duration, groupSize, handleDelete, handleSave }: ScheduledActivityProps) {
+export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, handleDelete, handleSave }: ScheduledActivityProps) {
     type ActivityOptions = {
         leg: number[],
         shadow: boolean
@@ -312,13 +268,13 @@ export function ScheduledActivity({ activeAct, actIndex, timeIndex, duration, gr
 
         // console.log(data);
 
-        handleSave(activeAct, actIndex);
+        handleSave(activeAct);
         onClose();
     }
 
     const onDelete = () => {
         setIsOpen(false);
-        handleDelete(activeAct, actIndex);
+        handleDelete(activeAct);
         onClose();
     }
 
@@ -359,7 +315,11 @@ export function ScheduledActivity({ activeAct, actIndex, timeIndex, duration, gr
                     <div id='body'>
                         <Form noValidate onSubmit={handleSubmit(onSubmit)}>
                             {range(0, groupSize).map((el, i) => (
-                                <Form.Control {...register(`leg.${i}`, { valueAsNumber: true, required: true, max: 12, min: 1 })}
+                                <Form.Control {...register(`leg.${i}`, { 
+                                        valueAsNumber: true, 
+                                        required: true, 
+                                        validate: (val) => val > 0 && val <= 12 && Number.isInteger(val)
+                                    })}
                                     isInvalid={!!(errors?.leg ? errors.leg[i] : false)}
                                     type="number"
                                     placeholder="Leg Number"
@@ -397,14 +357,13 @@ export function ScheduledActivity({ activeAct, actIndex, timeIndex, duration, gr
 
 interface ScheduledGlobalActivityProps {
     activeAct: GlobalActivity,
-    handleSave: (newAct: GlobalActivity, index: number) => void,
-    handleDelete: (newAct: GlobalActivity, index: number) => void,
+    handleSave: (newAct: GlobalActivity) => void,
+    handleDelete: (newAct: GlobalActivity) => void,
     timeIndex: number,
-    span: number,
-    gactIndex: number
+    span: number
 };
 
-export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, timeIndex, span, gactIndex }: ScheduledGlobalActivityProps) {
+export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, timeIndex, span }: ScheduledGlobalActivityProps) {
     let gridRow = `${timeIndex + 2} / span ${activeAct.duration * 2}`;
 
     type GlobalActivityOptions = {
@@ -423,23 +382,25 @@ export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, t
 
     const notScheduled = activeAct.name ? false : true;
 
-    const [isOpen, setIsOpen] = useState(notScheduled);
+    const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setIsOpen(notScheduled);
+    }, [notScheduled]);
 
     const onSubmit: SubmitHandler<GlobalActivityOptions> = async (data) => {
         setIsOpen(false);
         let newAct = { ...activeAct, ...data };
 
-        // console.log(data);
-
-        handleSave(newAct, gactIndex);
+        handleSave(newAct);
         onClose();
     }
 
     const onDelete = () => {
         // console.log("handling delete...");
         setIsOpen(false);
-        handleDelete(activeAct, gactIndex);
+        handleDelete(activeAct);
         onClose();
     }
 
