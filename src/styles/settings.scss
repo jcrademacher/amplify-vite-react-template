@@ -1,0 +1,171 @@
+@import './colors.scss';
+#settings {
+    display: flex;
+    flex-direction: row;
+    height: 500px;
+    overflow: hidden;
+
+    #sidebar {
+        width: 20%;
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid rgb(223, 223, 223);
+        min-width: 200px;
+
+        .btn {
+            border-radius: 0px;
+            border: none;
+            text-align: left;
+
+            &.btn-light {
+                background-color: transparent;
+
+                &:hover {
+                    background-color: rgb(223, 223, 223);
+                }
+            }
+
+            // >.btn-light:hover {
+            //     background-color: inherit;
+            // }
+        }
+    }
+
+    #content {
+        width: 80%;
+
+        overflow-y: auto;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        // height: calc();
+    
+        &::-webkit-scrollbar {
+            display: none;
+        }
+        
+        // overflow-x: scroll;
+
+        // #activity-manager {
+
+        // }
+
+        .settings {
+            padding: 10px;
+            $small-font: 12px;
+            
+            
+        
+
+            .activity-row-grid, form {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                // padding: 4px;
+                width: 100%;
+
+                .final {
+                    max-width: 100px;
+                    display: flex;
+                    justify-content: right;
+                    
+                }
+
+                &.header {
+                    font-size: $small-font;
+                    color: rgb(75, 75, 75);
+                    background-color: none;
+                    > * {
+                        margin: 0px 5px;
+                    }
+                }
+
+                .form-check,.col {
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    width: 100%;
+
+                    >label {
+                        margin-left: 4px;
+                    }
+
+                    &.form-check-inline {
+                        // flex-direction: row;
+                        margin: 0px;
+                    }
+                }
+
+                input, label, select  {
+                    font-size: calc($small-font + 2px);
+                    // margin: 0px 4px;
+                }
+                
+                
+
+                // > span {
+                //     // flex-basis: 100%;
+                //     margin: 2px;
+                //     display: flex;
+                //     align-items: center;
+                //     justify-content: right;
+                // }
+            }
+            $row-height: 40px;
+
+            .activity-add-element {
+                background-color: rgb(221, 221, 221);
+                height: $row-height;
+                // color: white;
+
+                > * {
+                    margin: 2px 5px;
+
+                    > * {
+                        margin: 2px 5px;
+                    }
+                }
+            }
+
+            .activity-list-element {
+                // background-color: rgb(166, 166, 166);
+                font-size: calc($small-font + 2px);
+                :first-child {
+                    font-weight: 600;
+                }
+                height: $row-height;
+                margin: 2px 0px;
+                > * {
+                    margin: 2px 5px;
+                }
+
+                border-bottom: 1px solid gray;
+            }
+        }
+    }
+}
+
+#settings-modal {
+    &.modal-dialog {
+        --bs-modal-width: 90%;
+    }
+    .modal-body {
+        padding: 0px;
+    }
+
+    .modal-content {
+        overflow: hidden;
+    }
+}
+
+.hide {
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    &:hover {
+        opacity: 1;
+        // margin: 10px;
+    }
+}
+
+
+

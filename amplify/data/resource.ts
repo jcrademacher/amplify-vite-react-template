@@ -7,12 +7,6 @@ specifies that any user authenticated via an API key can "create", "read",
 "update", and "delete" any "Todo" records.
 =========================================================================*/
 const schema = a.schema({
-  Todo: a
-    .model({
-      content: a.string()
-    })
-    .authorization((allow) => [allow.owner()]),
-
   Schedule: a
     .model({
       name: a.string(),
@@ -28,10 +22,10 @@ const schema = a.schema({
       schedule: a.belongsTo('Schedule','scheduleId'),
       startTime: a.time().required(),
       day: a.integer().required(),
-      shadow: a.boolean().required(), // 0 = no shadow, 1 = shadow
-      leg: a.integer().required(),
+      shadow: a.boolean(), // 0 = no shadow, 1 = shadow
+      leg: a.integer().array().required(),
       supportName: a.string(),
-      activityPrototypeId: a.id(),
+      activityPrototypeId: a.id().required(),
       activityPrototype: a.belongsTo('ActivityPrototype', 'activityPrototypeId')
     })
     .authorization((allow) => [allow.authenticated()]),
@@ -44,7 +38,9 @@ const schema = a.schema({
       type: a.string().required(),
       preferredDays: a.integer().array(),
       requiredDays: a.integer().array(),
-      isRequired: a.boolean()
+      groupSize: a.integer().required(),
+      zone: a.string(),
+      isRequired: a.boolean().required()
     })
     .authorization((allow) => [allow.authenticated()])
 });

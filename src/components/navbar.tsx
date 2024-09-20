@@ -1,15 +1,17 @@
-import { Nav } from 'react-bootstrap';
 import '../styles/navbar.scss';
 import Dropdown from 'react-bootstrap/Dropdown';
-import { Link } from 'react-router-dom';
+import { UseAuthenticator } from '@aws-amplify/ui-react';
 
 interface NavBarProps {
-    signOut: Function;
+    signOut: UseAuthenticator["signOut"] | undefined;
 }
 
 interface DropdownProps {
     title: string;
-    items: object[];
+    items: {
+        name: string;
+        route: string;
+    }[];
 }
 
 function NavDropdown({title, items}: DropdownProps) {
@@ -29,12 +31,12 @@ function NavDropdown({title, items}: DropdownProps) {
 }
 
 function NavBar({signOut}: NavBarProps) {
-    const fileItems = [
+    const fileItems: object[] = [
         { name: "Save", route: "save"},
         { name: "Open", route: "open"}
     ];
 
-    const viewItems = [
+    const viewItems: object[] = [
         { name: "Master", route: "day"},
         { name: "Leg", route: "week"}
     ];
@@ -45,8 +47,8 @@ function NavBar({signOut}: NavBarProps) {
             <span>
                 <b>RYLA Scheduler</b>
             </span>
-            <NavDropdown title="File" items={fileItems}/>
-            <NavDropdown title="View" items={viewItems}/>
+            {/* <NavDropdown title="File" items={fileItems}/>
+            <NavDropdown title="View" items={viewItems}/> */}
         </div>
     )
 }

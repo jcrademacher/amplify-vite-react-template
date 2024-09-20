@@ -1,6 +1,13 @@
-#view-control {
-    background-color: gray;
+
+.btn-stick-right {
+    float: right;
+    margin-right: inherit;
 }
+
+.btn-stick-left {
+    margin-right: 5px;
+}
+
 
 #home-page {
     display: flex;
@@ -9,8 +16,51 @@
     height: 100%;
 
     #content {
-        width: 70%;
+        width: 100%;
+        padding: min(8%,30px) min(10%,60px);
+        display: flex;
+        flex-direction: column;
+
+        >#footer {
+            margin-top: 20px;
+            display: flex;;
+            flex-direction: row-reverse;
+        }
     }
 
     
 }
+
+#view-control {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .btn {
+        font-size: 14px;
+    }
+
+    #view-control-buttons {
+        .btn {
+            border-radius: 0px;
+            padding: 10px;
+            font-weight: 500;
+        }
+    }
+    
+    #view-subselect {
+        .btn {
+            border-radius: 40px;
+            margin-right: 5px;
+        }
+    }
+}
+
+.separator {
+    height: 4px;
+    background-color: rgb(196, 196, 196);
+    margin: 20px 0px;
+}
+
