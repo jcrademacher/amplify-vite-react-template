@@ -1,8 +1,7 @@
 import '../styles/home.scss';
 import 'react-toastify/dist/ReactToastify.css';
 import Button from 'react-bootstrap/Button';
-import ButtonGroup from 'react-bootstrap/ButtonGroup';
-import { faFloppyDisk, faGear } from '@fortawesome/free-solid-svg-icons';
+import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState } from 'react';
 import Scheduler from '../components/scheduler';
@@ -28,7 +27,7 @@ type ViewControlProps = {
     setShowSettings: (show: boolean) => void
 }
 
-function ViewControl({ startDate, numDays, view, setView, dayView, setDayView, setShowSettings }: ViewControlProps) {
+function ViewControl({ startDate, numDays, dayView, setDayView, setShowSettings }: ViewControlProps) {
 
 
     const startDay = startDate.getDay();

@@ -8,7 +8,7 @@ export type ActivityMap = {
 };
 
 export async function getActivities(day: number): Promise<Activity[]> {
-    const { data: items, errors } = await client.models.Activity.list({
+    const { data: items } = await client.models.Activity.list({
         filter: {
             day: {
                 eq: day

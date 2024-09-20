@@ -1,7 +1,6 @@
 import { View } from '../../pages/home-page'
 import '../../styles/scheduler.scss'
-import type { Schema } from "../../../amplify/data/resource";
-import { act, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import moment from 'moment';
 
 import { useQuery } from '@tanstack/react-query';
@@ -35,13 +34,10 @@ export const getTimes = () => times;
 
 import { getActivityPrototypesMapped } from '../../api/apiActivityPrototype';
 import { ScheduledActivity, Workarea, addActivity, removeActivity, updateActivity } from './activities';
-import { isEqual } from 'lodash';
 
 import {
     LocalActivity,
     GlobalActivity,
-    LocalActivityMap,
-    TimeMap,
     GlobalActivityDragStatus,
     GlobalActivityState,
     ScheduleObject
@@ -53,7 +49,7 @@ import { useHistoryState } from '@uidotdev/usehooks';
 
 // let tmoment: (m: string) => moment.Moment = (m: string) => moment(`2024-01-01 ${m}`);
 
-export default function Scheduler({ view, dayView }: SchedulerProps) {
+export default function Scheduler({ dayView }: SchedulerProps) {
    
     const actProtoQuery = useQuery({
         queryKey: ['activityPrototypesMapped'],
@@ -61,7 +57,7 @@ export default function Scheduler({ view, dayView }: SchedulerProps) {
     });
 
     const activities = actProtoQuery.data ? actProtoQuery.data : {};
-    let { state, set, undo, redo, canUndo, canRedo } = useHistoryState<ScheduleObject>({
+    let { state, set, undo, redo } = useHistoryState<ScheduleObject>({
         acts: {},
         globalActs: {}
     });

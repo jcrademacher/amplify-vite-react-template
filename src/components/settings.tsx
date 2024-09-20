@@ -64,8 +64,7 @@ function ActivityAddElement({ saving, handleSave, activeActivity }: ActivityAddE
         register,
         handleSubmit,
         formState: { errors },
-        reset,
-        getValues
+        reset
     } = useForm<ActivityPrototype>({ values: activeActivity });
 
     const onSubmit: SubmitHandler<ActivityPrototype> = async (data) => {
@@ -126,7 +125,7 @@ function ActivityAddElement({ saving, handleSave, activeActivity }: ActivityAddE
                         // const vals = getValues("preferredDays");
                         return (
                             <Form.Check
-                                {...register("preferredDays", { validate: (value, formValues) => Array.isArray(value) && value?.length != 0 })}
+                                {...register("preferredDays", { validate: (value, _) => Array.isArray(value) && value?.length != 0 })}
                                 isInvalid={!!errors.preferredDays}
                                 inline
                                 type="checkbox"

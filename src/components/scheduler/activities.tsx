@@ -20,10 +20,9 @@ import {
     TimeMap,
     Activity
 } from "./types";
-import { getTimes } from '.';
-import { ActivityPrototype, ActivityPrototypeMap } from "../../api/apiActivityPrototype";
+import { ActivityPrototypeMap } from "../../api/apiActivityPrototype";
 
-import { Button, Spinner } from 'react-bootstrap';
+import { Button } from 'react-bootstrap';
 import { range } from 'lodash';
 
 import { useDrag, useDrop } from 'react-dnd';
@@ -57,7 +56,8 @@ const checkTimeDurationInObject: (startTime: moment.Moment, duration: number, ob
 }
 
 export const checkActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, acts: TimeMap<LocalActivity>, gacts: TimeMap<GlobalActivity>) => {
-    let canCreate = checkTimeDurationInObject(startTime, duration, acts);
+    let canCreateActs = checkTimeDurationInObject(startTime, duration, acts);
+    let canCreateGacts = checkTimeDurationInObject(startTime, duration, gacts);
 
     let actEnd = startTime.clone();
     actEnd.add(duration,'hours');
@@ -66,7 +66,7 @@ export const checkActivityCreate = (startTime: moment.Moment, duration: number, 
         return false;
     }
     
-    return canCreate;
+    return canCreateActs && canCreateGacts;
     
 };
 
@@ -76,6 +76,13 @@ export const checkGlobalActivityCreate = (startTime: moment.Moment, duration: nu
     // check against existin global activities
     let canCreate = checkTimeDurationInObject(startTime, duration, gacts);
     if (!canCreate) {
+        return false;
+    }
+
+    let actEnd = startTime.clone();
+    actEnd.add(duration,'hours');
+
+    if(actEnd.diff(dayEnd) > 0) {
         return false;
     }
 
@@ -122,8 +129,6 @@ export function Workarea({
 }: WorkareaProps) {
     const originTime = state.originCell ? state.originCell[1] : undefined;
     const currentTime = state.currentCell ? state.currentCell[1] : undefined;
-
-    const [hovering, setHovering] = useState(false);
 
     let dragHighlight: boolean;
 
@@ -175,8 +180,6 @@ export function Workarea({
                 });
             }}
             onMouseEnter={() => {
-                setHovering(true);
-
                 if (state.status !== GlobalActivityDragStatus.NONE) {
                     setState({
                         ...state,
@@ -214,7 +217,6 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
 
     // this state determines whether or not the dialog opens upon initial scheduling of the activity
     const [isOpen, setIsOpen] = useState(false);
-    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setIsOpen(notScheduled);
@@ -224,7 +226,7 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
 
     const { refs, floatingStyles, context } = useFloating({
         open: isOpen,
-        onOpenChange(nextOpen, event, reason) {
+        onOpenChange(nextOpen, _, reason) {
             setIsOpen(nextOpen);
 
             // Other ones include 'reference-press' and 'ancestor-scroll'
@@ -247,8 +249,7 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
         register,
         handleSubmit,
         formState: { errors },
-        reset,
-        control
+        reset
     } = useForm<ActivityOptions>({ values: !activeAct.leg.some((el) => el === 0) ? activeAct : undefined });
 
     // console.log(errors);
@@ -314,7 +315,7 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
                     <div id='header'>Edit Activity</div>
                     <div id='body'>
                         <Form noValidate onSubmit={handleSubmit(onSubmit)}>
-                            {range(0, groupSize).map((el, i) => (
+                            {range(0, groupSize).map((_, i) => (
                                 <Form.Control {...register(`leg.${i}`, { 
                                         valueAsNumber: true, 
                                         required: true, 
@@ -331,15 +332,15 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
                             <Form.Check {...register("shadow")} type="checkbox" label="Shadow?" />
 
                             <div id="form-footer">
-                                <Button disabled={saving} variant="primary" type="submit">
-                                    {saving ?
+                                <Button variant="primary" type="submit">
+                                    {/* {saving ?
                                         <Spinner as="span"
                                             animation="border"
                                             size="sm"
                                             role="status"
                                             style={{ marginRight: "5px" }}
                                         /> : <></>
-                                    }
+                                    } */}
                                     Save
                                 </Button>
                                 <Button onClick={onDelete} variant="danger">
@@ -374,8 +375,7 @@ export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, t
         register,
         handleSubmit,
         formState: { errors },
-        reset,
-        control
+        reset
     } = useForm<GlobalActivityOptions>({ values: { name: activeAct.name ? activeAct.name : "" } });
 
     const arrowRef = useRef(null);
@@ -383,7 +383,6 @@ export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, t
     const notScheduled = activeAct.name ? false : true;
 
     const [isOpen, setIsOpen] = useState(false);
-    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setIsOpen(notScheduled);
@@ -418,7 +417,7 @@ export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, t
 
     const { refs, floatingStyles, context } = useFloating({
         open: isOpen,
-        onOpenChange(nextOpen, event, reason) {
+        onOpenChange(nextOpen, _, reason) {
             setIsOpen(nextOpen);
             // console.log("open changed");
             // Other ones include 'reference-press' and 'ancestor-scroll'
@@ -475,15 +474,15 @@ export function ScheduledGlobalActivity({ activeAct, handleSave, handleDelete, t
                             />
 
                             <div id="form-footer">
-                                <Button disabled={saving} variant="primary" type="submit">
-                                    {saving ?
+                                <Button variant="primary" type="submit">
+                                    {/* {saving ?
                                         <Spinner as="span"
                                             animation="border"
                                             size="sm"
                                             role="status"
                                             style={{ marginRight: "5px" }}
                                         /> : <></>
-                                    }
+                                    } */}
                                     Save
                                 </Button>
                                 <Button onClick={onDelete} variant="danger">
