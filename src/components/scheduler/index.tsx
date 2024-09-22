@@ -1,4 +1,4 @@
-import { View } from '../../pages/home-page'
+import { View } from '../../pages/scheduling-page'
 import '../../styles/scheduler.scss'
 import { useEffect, useState } from 'react';
 import moment from 'moment';

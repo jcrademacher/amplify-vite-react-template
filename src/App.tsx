@@ -5,7 +5,7 @@ import '@aws-amplify/ui-react/styles.css';
 
 import { Routes, Route } from "react-router-dom";
 import NavBar from './components/navbar.js';
-import HomePage from './pages/home-page.js';
+import SchedulingPage from './pages/scheduling-page.js';
 
 function App() {
   
@@ -18,7 +18,7 @@ function App() {
             <NavBar signOut={signOut}/>
             <div id="app-container">
               <Routes>
-                <Route path="/" element={<HomePage/>} />
+                <Route path="/" element={<SchedulingPage/>} />
               </Routes>
             </div>
           </div>

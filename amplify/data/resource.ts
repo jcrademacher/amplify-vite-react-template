@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { Schedule } from "aws-cdk-lib/aws-events";
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -9,10 +10,12 @@ specifies that any user authenticated via an API key can "create", "read",
 const schema = a.schema({
   Schedule: a
     .model({
-      name: a.string(),
-      year: a.integer(),
-      active: a.boolean(),
-      activities: a.hasMany('Activity','scheduleId')
+      name: a.string().required(),
+      active: a.boolean().required(),
+      activities: a.hasMany('Activity','scheduleId'),
+      startTimes: a.date().array().required(),
+      endTimes: a.date().array().required(),
+      activityPrototypes: a.hasMany('ActivityPrototype','scheduleId')
     })
     .authorization((allow) => [allow.authenticated()]),
 
@@ -33,6 +36,8 @@ const schema = a.schema({
   ActivityPrototype: a
     .model({
       activities: a.hasMany('Activity', 'activityPrototypeId'),
+      scheduleId: a.id(),
+      schedule: a.belongsTo('Schedule','scheduleId'),
       name: a.string().required(),
       duration: a.float().required(),
       type: a.string().required(),

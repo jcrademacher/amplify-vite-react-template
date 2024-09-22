@@ -58,6 +58,15 @@
     }
 }
 
+#landing-view {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+}
+
 .separator {
     height: 4px;
     background-color: rgb(196, 196, 196);
