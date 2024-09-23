@@ -10,7 +10,7 @@ import HomePage from './pages/home-page.js';
 function App() {
   
   return (  
-    <Authenticator>
+    <Authenticator hideSignUp>
       {({ signOut }) => {
 
         return (
