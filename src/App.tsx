@@ -10,7 +10,7 @@ import SchedulingPage from './pages/scheduling-page.js';
 function App() {
   
   return (  
-    <Authenticator>
+    <Authenticator hideSignUp>
       {({ signOut }) => {
 
         return (
