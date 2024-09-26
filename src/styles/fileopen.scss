@@ -1,0 +1,60 @@
+@import 'colors.scss';
+
+#open {
+    padding: 10px;
+    $small-font: 12px;
+    
+    
+    .row-grid {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        // padding: 4px;
+        width: 100%;
+
+        &.header {
+            font-size: $small-font;
+            color: rgb(75, 75, 75);
+            background-color: none;
+            > * {
+                margin: 0px 5px;
+            }
+        }
+
+        .col {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            width: 100%;
+        }
+    }
+    
+    $row-height: 40px;
+
+    .list-element {
+        // background-color: rgb(166, 166, 166);
+        font-size: calc($small-font + 2px);
+
+        cursor: pointer;
+
+        &:hover {
+            background-color: rgb(239, 239, 239);
+        }
+
+        &.selected {
+            background-color: $highlight;
+        }
+
+        :first-child {
+            font-weight: 600;
+        }
+        height: $row-height;
+        padding: 2px 0px;
+        > * {
+            padding: 2px 5px;
+        }
+
+        border-bottom: 1px solid gray;
+    }
+}
+    
