@@ -1,14 +1,18 @@
 import '../styles/navbar.scss';
 import { UseAuthenticator } from '@aws-amplify/ui-react';
+import { useContext } from 'react';
 import { Dropdown } from 'react-bootstrap';
+import { ScheduleContext } from '../App';
 
 interface NavBarProps {
     signOut: UseAuthenticator["signOut"] | undefined;
+    handleFileNew: () => void;
+    handleFileOpen: () => void;
 }
 
 type DropdownOptions = {
     name: string,
-    action: (...args: any) => void,
+    action: () => void,
     disabled: boolean
 }
 
@@ -25,26 +29,23 @@ function NavDropdown({title, items}: DropdownProps) {
         </Dropdown.Toggle>
 
         <Dropdown.Menu>
-            {items.map(({ name, disabled }) =>
-                <Dropdown.Item disabled={disabled} onClick={()=> console.log("clicked")} key={name}>{name}</Dropdown.Item>
+            {items.map(({ name, disabled, action }) =>
+                <Dropdown.Item disabled={disabled} onClick={action} key={name}>{name}</Dropdown.Item>
             )}
         </Dropdown.Menu>
         </Dropdown>
     );
 }
 
-function NavBar({signOut}: NavBarProps) {
-    const fileItems = [
-        { name: "New...", action: () => {}, disabled: false},
-        { name: "Open...", action: () => {}, disabled: false},
-        { name: "Save", action: () => {}, disabled: false},
-        { name: "Save & Close", action: () => {}, disabled: false}
-    ];
+function NavBar({signOut, handleFileNew, handleFileOpen}: NavBarProps) {
+    const schContext = useContext(ScheduleContext);
 
-    // const viewItems = [
-    //     { name: "Master", route: "day"},
-    //     { name: "Leg", route: "week"}
-    // ];
+    const fileItems = [
+        { name: "New...", action: handleFileNew, disabled: schContext.id !== undefined},
+        { name: "Open...", action: handleFileOpen, disabled: schContext.id !== undefined},
+        { name: "Save", action: () => {}, disabled: schContext.id === undefined},
+        { name: "Save & Close", action: () => { schContext.setId(undefined) }, disabled: schContext.id === undefined}
+    ];
 
     return (
         <div id="nav">

@@ -7,20 +7,30 @@ export type ActivityPrototypeMap = {
     [id: string]: ActivityPrototype
 }
 
-export async function getActivityPrototypes(): Promise<ActivityPrototype[]> {
-    const { data: items, errors } = await client.models.ActivityPrototype.list();
-    console.log(errors);
-    if (!items) return [];
+export async function getActivityPrototypes(scheduleId: string): Promise<ActivityPrototype[]> {
+    const { data: items, errors } = await client.models.ActivityPrototype.list({
+        filter: {
+            scheduleId: {
+                eq: scheduleId
+            }
+        }
+    });
 
-    let elements = items.filter((act) => act.type === 'element').sort((a, b) => a.name.localeCompare(b.name));
-    let programs = items.filter((act) => act.type === 'program').sort((a, b) => a.name.localeCompare(b.name));
+    if (!errors && items) {
+
+        let elements = items.filter((act) => act.type === 'element').sort((a, b) => a.name.localeCompare(b.name));
+        let programs = items.filter((act) => act.type === 'program').sort((a, b) => a.name.localeCompare(b.name));
 
 
-    return elements.concat(programs);
+        return elements.concat(programs);
+    } else {
+        console.log(errors);
+        throw new Error(errors?.map((el) => el.message).join(','));
+    }
 }
 
-export async function getActivityPrototypesMapped(): Promise<ActivityPrototypeMap> {
-    let protos = await getActivityPrototypes();
+export async function getActivityPrototypesMapped(scheduleId: string): Promise<ActivityPrototypeMap> {
+    let protos = await getActivityPrototypes(scheduleId);
 
     const retval: ActivityPrototypeMap = {};
 
@@ -32,17 +42,25 @@ export async function getActivityPrototypesMapped(): Promise<ActivityPrototypeMa
 }
 
 export async function mutateActivityPrototype(data: ActivityPrototype): Promise<void> {
-    if(data.id) {
-        const {errors} = await client.models.ActivityPrototype.update(data);
-        console.log(errors);
+    let retval;
+
+    if (data.id) {
+        retval = await client.models.ActivityPrototype.update(data);
     }
     else {
-        const {errors} = await client.models.ActivityPrototype.create(data);
-        console.log(errors);
+        retval = await client.models.ActivityPrototype.create(data);
+    }
+
+    if(!retval.errors && retval.data) {
+        return;
+    } 
+    else {
+        console.log(retval.errors);
+        throw new Error(retval.errors?.map((el) => el.message).join(','));
     }
 }
 
 export async function deleteActivityPrototype(id: string): Promise<void> {
-    const {errors} = await client.models.ActivityPrototype.delete({id});
+    const { errors } = await client.models.ActivityPrototype.delete({ id });
     console.log(errors);
 }

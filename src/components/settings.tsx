@@ -1,14 +1,19 @@
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import Form from 'react-bootstrap/Form';
 import Spinner from 'react-bootstrap/Spinner';
 import { useForm, SubmitHandler } from "react-hook-form"
 import type { Schema } from "../../amplify/data/resource";
 import '../styles/settings.scss';
-import { Col, ButtonGroup } from 'react-bootstrap';
+import { Row, Col, ButtonGroup } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare, faTrashCan } from '@fortawesome/free-solid-svg-icons';
+import { mutateSchedule, Schedule } from '../api/apiSchedule';
+
+import moment from 'moment';
+
+import { timeFormatKey, startTimeOptions, endTimeOptions } from './forms';
 
 type ActivityPrototype = Schema["ActivityPrototype"]["type"]
 
@@ -67,18 +72,26 @@ function ActivityAddElement({ saving, handleSave, activeActivity }: ActivityAddE
         reset
     } = useForm<ActivityPrototype>({ values: activeActivity });
 
+    const schContext = useContext(ScheduleContext);
+
     const onSubmit: SubmitHandler<ActivityPrototype> = async (data) => {
-        await handleSave(data);
+        handleSave({...data, scheduleId: schContext.id});
         // console.log("submitting");
         // console.log(data);
 
         if(!activeActivity) reset();
     };
 
+    const schQuery = useScheduleQuery(schContext.id as string);
+
+    const schedule: Schedule | null = schQuery.data ? schQuery.data : null;
+
+    const numDays = moment(schedule?.endDates[schedule?.endDates.length-1]).diff(moment(schedule?.startDates[0]), 'days')+1;
+
     // console.log(errors);
 
     return (
-        <Form noValidate onSubmit={handleSubmit(onSubmit)}>
+        <Form noValidate className="activity-form" onSubmit={handleSubmit(onSubmit)}>
             <Col>
                 <Form.Control {...register("name", { required: true })}
                     isInvalid={!!errors.name}
@@ -121,7 +134,7 @@ function ActivityAddElement({ saving, handleSave, activeActivity }: ActivityAddE
             </Col>
             <Col>
                 {
-                    range(1, 5).map((day) => {
+                    range(1, numDays + 1).map((day) => {
                         // const vals = getValues("preferredDays");
                         return (
                             <Form.Check
@@ -158,28 +171,174 @@ function ActivityAddElement({ saving, handleSave, activeActivity }: ActivityAddE
     )
 }
 
+import { Validate } from 'react-hook-form';
+import { emitToast, ToastType } from './notifications';
+import { ScheduleSettings, convertFormToDates } from './forms';
+
 function GeneralSettings() {
+    const schContext = useContext(ScheduleContext);
+    const schQuery = useScheduleQuery(schContext.id as string);
+
+    const endTime = moment(schQuery.data?.endDates[schQuery.data?.endDates.length-1]);
+    endTime.subtract(30,'minutes');
+
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+        reset
+    } = useForm<ScheduleSettings>({ values: {
+        name: schQuery.data?.name ? schQuery.data.name : undefined,
+        startDate: moment(schQuery.data?.startDates[0]).format("YYYY-MM-DD"),
+        endDate: moment(schQuery.data?.endDates[schQuery.data?.endDates.length-1]).format("YYYY-MM-DD"),
+        startTime: timeFormatKey(moment(schQuery.data?.startDates[0])),
+        endTime: timeFormatKey(endTime)
+    } });
+
+
+    const mutation = useMutation({
+        mutationFn: mutateSchedule,
+        onSuccess: async () => {
+            setSaving(false);
+
+            // console.log(id);
+            schQuery.refetch();
+            emitToast("Changes saved", ToastType.Success)
+        },
+        onError: (error) => {
+            setSaving(false);
+
+            emitToast(`Error updating schedule: ${error.message}`, ToastType.Error);
+        },
+        onMutate: async () => {
+            setSaving(true);
+        }
+    });
+
+
+    const [saving, setSaving] = useState(false);
+
+    const validateTimes: Validate<string | undefined, ScheduleSettings> = (_, formValues) => {
+        let startTime = moment(formValues.startTime, "hh:mm A");
+        let endTime = moment(formValues.endTime, "hh:mm A");
+
+        return startTime && endTime && startTime.diff(endTime) < 0;
+    }
+
+    const validateDates: Validate<string | undefined, ScheduleSettings> = (_, formValues) => {
+        let startDate = moment(formValues.startDate, "YYYY-MM-DD");
+        let endDate = moment(formValues.endDate, "YYYY-MM-DD");
+
+        // return startDate && endDate && (startDate.diff(endDate) < 0 && endDate.diff(startDate,'days') <= 7);
+        return startDate.isValid() && endDate.isValid() && startDate.diff(endDate) < 0 && endDate.diff(startDate, 'days') <= 7;
+    }
+
+    const onSubmit: SubmitHandler<ScheduleSettings> = async (data) => {
+        setSaving(true);
+
+        const { startDates, endDates } = convertFormToDates(data);
+
+        mutation.mutate({
+            startDates: startDates,
+            endDates: endDates,
+            id: schContext.id as string
+        });
+    }
+
     return (
         <div className="settings">
-            General
+            <Form noValidate className="general-settings" onSubmit={handleSubmit(onSubmit)}>
+                <Form.Group className="form-group">
+                    <Form.Label>Name</Form.Label>
+                    <Form.Control placeholder="Name the schedule..." {...register("name", { required: true })} isInvalid={!!errors.name} />
+                    <Form.Control.Feedback type="invalid">
+                        Please enter a name.
+                    </Form.Control.Feedback>
+                </Form.Group>
+                <Row>
+                    <Col>
+                        <Form.Group className="form-group">
+                            <Form.Label>Start Date</Form.Label>
+                            <Form.Control type="date" {...register("startDate", { validate: validateDates })} isInvalid={!!errors.startDate} />
+                            <Form.Control.Feedback type="invalid">
+                                Please select a date. Start date must be before end date.
+                            </Form.Control.Feedback>
+                        </Form.Group>
+                    </Col>
+                    <Col>
+                        <Form.Group className="form-group">
+                            <Form.Label>End Date</Form.Label>
+                            <Form.Control type="date" {...register("endDate", { validate: validateDates })} isInvalid={!!errors.endDate} />
+                            <Form.Control.Feedback type="invalid">
+                                Please select a date. End date must be after start date by no more than 7 days.
+                            </Form.Control.Feedback>
+                        </Form.Group>
+                    </Col>
+                </Row>
+                <Row>
+                    <Col>
+                        <Form.Group className="form-group">
+                            <Form.Label>Start Time</Form.Label>
+                            <Form.Select {...register("startTime", {
+                                validate: validateTimes
+                            })}
+                                isInvalid={!!errors.startTime}
+
+                            >
+                                {startTimeOptions.map((el, i) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                            </Form.Select>
+                            <Form.Text>The time that the schedule should start from each day</Form.Text>
+                            <Form.Control.Feedback type="invalid">
+                                Start time should be before end time.
+                            </Form.Control.Feedback>
+                        </Form.Group>
+                    </Col>
+                    <Col>
+                        <Form.Group className="form-group">
+                            <Form.Label>End Time</Form.Label>
+                            <Form.Select {...register("endTime", { required: true })} isInvalid={!!errors.startTime}>
+                                {endTimeOptions.map((el, i) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                            </Form.Select>
+                            <Form.Text>The time that the schedule should end at each day</Form.Text>
+                            <Form.Control.Feedback type="invalid">
+                                End time should be after start time.
+                            </Form.Control.Feedback>
+                        </Form.Group>
+                    </Col>
+                </Row>
+                <div className="modal-footer-div">
+                    <Button variant="primary" type="submit" disabled={saving}>
+                        {saving ?
+                            <Spinner as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                style={{ marginRight: "5px" }}
+                            /> : <></>
+                        }
+                        Save Changes
+                    </Button>
+                </div>
+            </Form>
         </div>
     )
 }
 
 
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { getActivityPrototypesMapped, mutateActivityPrototype, deleteActivityPrototype } from '../api/apiActivityPrototype';
+import { useMutation } from '@tanstack/react-query';
+import { mutateActivityPrototype, deleteActivityPrototype } from '../api/apiActivityPrototype';
 import { range } from 'lodash';
+import { ScheduleContext } from '../App';
+import { useActivityPrototypesQuery, useScheduleQuery } from '../queries';
 
 // const emptyActivity: Activity = {} as Activity;
 
 function ManagerSettings() {
     const [editId, setEditId] = useState("");
 
-    const query = useQuery({
-        queryKey: ["activityPrototypesMapped"],
-        queryFn: getActivityPrototypesMapped
-    });
+    const schContext = useContext(ScheduleContext);
+
+    const query = useActivityPrototypesQuery(schContext.id as string);
 
     const actProtos = query.data ? Object.keys(query.data).map((k) => query.data[k]) : [];
 
@@ -237,7 +396,6 @@ function ManagerSettings() {
                     <div className='activity-row-grid activity-add-element'>
                         <ActivityAddElement
                             handleSave={mutation.mutate}
-                            
                             saving={mutation.isPending}
                             activeActivity={act}
                         />

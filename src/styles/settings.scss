@@ -53,10 +53,14 @@
             padding: 10px;
             $small-font: 12px;
             
-            
+            height: 100%;
+
+            .general-settings {
+                height: 100%;
+            }
         
 
-            .activity-row-grid, form {
+            .activity-row-grid, .activity-form {
                 display: flex;
                 flex-direction: row;
                 align-items: center;

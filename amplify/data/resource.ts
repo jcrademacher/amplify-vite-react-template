@@ -8,59 +8,58 @@ specifies that any user authenticated via an API key can "create", "read",
 "update", and "delete" any "Todo" records.
 =========================================================================*/
 const schema = a.schema({
-  Schedule: a
-    .model({
-      name: a.string().required(),
-      active: a.boolean().required(),
-      activities: a.hasMany('Activity','scheduleId'),
-      startTimes: a.date().array().required(),
-      endTimes: a.date().array().required(),
-      activityPrototypes: a.hasMany('ActivityPrototype','scheduleId')
-    })
-    .authorization((allow) => [allow.authenticated()]),
+    Schedule: a
+        .model({
+            name: a.string(),
+            startDates: a.datetime().array().required(),
+            endDates: a.datetime().array().required(),
+            activityPrototypes: a.hasMany('ActivityPrototype', 'scheduleId')
+        })
+        .authorization((allow) => [
+            allow.authenticated().to(['create', 'read']),
+            allow.owner().to(['create', 'read', 'update'])
+        ]),
 
-  Activity: a
-    .model({
-      scheduleId: a.id(),
-      schedule: a.belongsTo('Schedule','scheduleId'),
-      startTime: a.time().required(),
-      day: a.integer().required(),
-      shadow: a.boolean(), // 0 = no shadow, 1 = shadow
-      leg: a.integer().array().required(),
-      supportName: a.string(),
-      activityPrototypeId: a.id().required(),
-      activityPrototype: a.belongsTo('ActivityPrototype', 'activityPrototypeId')
-    })
-    .authorization((allow) => [allow.authenticated()]),
+    Activity: a
+        .model({
+            startTime: a.time().required(),
+            day: a.integer().required(),
+            shadow: a.boolean(), // 0 = no shadow, 1 = shadow
+            leg: a.integer().array().required(),
+            supportName: a.string(),
+            activityPrototypeId: a.id(),
+            activityPrototype: a.belongsTo('ActivityPrototype', 'activityPrototypeId')
+        })
+        .authorization((allow) => [allow.authenticated()]),
 
-  ActivityPrototype: a
-    .model({
-      activities: a.hasMany('Activity', 'activityPrototypeId'),
-      scheduleId: a.id(),
-      schedule: a.belongsTo('Schedule','scheduleId'),
-      name: a.string().required(),
-      duration: a.float().required(),
-      type: a.string().required(),
-      preferredDays: a.integer().array(),
-      requiredDays: a.integer().array(),
-      groupSize: a.integer().required(),
-      zone: a.string(),
-      isRequired: a.boolean().required()
-    })
-    .authorization((allow) => [allow.authenticated()])
+    ActivityPrototype: a
+        .model({
+            activities: a.hasMany('Activity', 'activityPrototypeId'),
+            scheduleId: a.id(),
+            schedule: a.belongsTo('Schedule', 'scheduleId'),
+            name: a.string().required(),
+            duration: a.float().required(),
+            type: a.string().required(),
+            preferredDays: a.integer().array(),
+            requiredDays: a.integer().array(),
+            groupSize: a.integer().required(),
+            zone: a.string(),
+            isRequired: a.boolean().required()
+        })
+        .authorization((allow) => [allow.authenticated()])
 });
 
 export type Schema = ClientSchema<typeof schema>;
 
 export const data = defineData({
-  schema,
-  authorizationModes: {
-    defaultAuthorizationMode: "userPool",
-    // API Key is used for a.allow.public() rules
-    apiKeyAuthorizationMode: {
-      expiresInDays: 30,
+    schema,
+    authorizationModes: {
+        defaultAuthorizationMode: "userPool",
+        // API Key is used for a.allow.public() rules
+        apiKeyAuthorizationMode: {
+            expiresInDays: 30,
+        },
     },
-  },
 });
 
 /*== STEP 2 ===============================================================
@@ -68,7 +67,7 @@ Go to your frontend source code. From your client-side code, generate a
 Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
 WORK IN THE FRONTEND CODE FILE.)
 
-Using JavaScript or Next.js React Server Components, Middleware, Server 
+Using JavaScript or Next.js React Server Components, Middleware, Server
 Actions or Pages Router? Review how to generate Data clients for those use
 cases: https://docs.amplify.aws/gen2/build-a-backend/data/connect-to-API/
 =========================================================================*/

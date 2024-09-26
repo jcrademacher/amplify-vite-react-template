@@ -3,10 +3,11 @@ import 'react-toastify/dist/ReactToastify.css';
 import Button from 'react-bootstrap/Button';
 import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import Scheduler from '../components/scheduler';
 import Settings from '../components/settings';
-import { range } from 'lodash';
+import moment from 'moment';
+import { ScheduleContext } from '../App';
 
 export enum View {
     MASTER = "Master",
@@ -18,8 +19,7 @@ export enum View {
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 type ViewControlProps = {
-    numDays: number,
-    startDate: Date,
+    startDates: moment.Moment[],
     view: View,
     setView: (view: View) => void,
     dayView: number,
@@ -27,25 +27,26 @@ type ViewControlProps = {
     setShowSettings: (show: boolean) => void
 }
 
-function ViewControl({ startDate, numDays, dayView, setDayView, setShowSettings }: ViewControlProps) {
-
-
-    const startDay = startDate.getDay();
+function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewControlProps) {
+    let startDate = startDates[0];
 
     return (
         <div id="view-control">
             <span id="view-subselect">
-                {range(startDay + 1, startDay + numDays + 1).map((day) =>
-                    <Button
-                        variant={dayView === (day - startDay) ? "primary" : "light"}
-                        onClick={() => setDayView(day - startDay)}
-                        key={day}
-                    >
-                        {days[day - 1]} (Day {day - startDay})
-                    </Button>
-                )}
+                {startDates.map((date) => {
+                    let diff = date.diff(startDate,'days') + 1;
 
-            </span>
+                    return (
+                        <Button
+                            variant={dayView === diff ? "primary" : "light"}
+                            onClick={() => setDayView(diff)}
+                            key={date.toISOString()}
+                        >
+                            {date.format('dddd')} (Day {diff})
+                        </Button>
+                    );
+                })}
+             </span>
             <Button
                 variant='light'
                 onClick={() => setShowSettings(true)}
@@ -73,15 +74,17 @@ function ViewControl({ startDate, numDays, dayView, setDayView, setShowSettings 
     )
 }
 
+
+
 export default function SchedulingPage() {
     // const notify = (message: string) => toast(message);
-    const [active, setActive] = useState(false);
+    const schContext = useContext(ScheduleContext);
 
 
     return (
         <div id="home-page">
             <div id="content">
-                <LandingView/>
+                {schContext.id ? <ScheduleView /> : <LandingView />}
             </div>
             {/* <ActivityManager/> */}
             {/* <ToastContainer/> */}
@@ -89,56 +92,76 @@ export default function SchedulingPage() {
     )
 }
 
+import { useScheduleQuery } from '../queries';
+
 function ScheduleView() {
     const [view, setView] = useState<View>(View.MASTER);
     const [dayView, setDayView] = useState<number>(1);
     // const [activities, setActivities] = useState<Schema["ActivityPrototype"]["type"][]>([]);
     const [showSettings, setShowSettings] = useState(false);
 
-    return (<>
-        <Settings
-            show={showSettings}
-            handleClose={() => setShowSettings(false)}
-        />
-        {/* <div>
-                    <Button className="btn-stick-left">New Schedule</Button>
-                    <Button className="btn-stick-left" variant="light">Open Schedule</Button>
-                    <Button
-                        variant='light'
-                        onClick={() => setShowSettings(true)}
-                        className='btn-stick-right'
-                    >
-                        <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
-                        Settings
-                    </Button>
-                    <Button className="btn-stick-right" variant="light">
-                        <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faFloppyDisk} />
-                        Save
-                    </Button>
-                </div>
-                <div className="separator" /> */}
-        <ViewControl
-            view={view}
-            setView={setView}
-            dayView={dayView}
-            setDayView={setDayView}
-            setShowSettings={setShowSettings}
-            startDate={new Date("Sunday June 23 2024")}
-            numDays={4}
-        />
-        <Scheduler
-            view={view}
-            dayView={dayView}
-        />
-    </>)
+    const schContext = useContext(ScheduleContext);
+
+    const query = useScheduleQuery(schContext.id as string);
+
+
+    // useEffect(() => {
+    //     console.log(query.status);
+    //     if(query.status === "success") {
+    //         emitToast("Opened schedule", ToastType.Success);
+    //     }
+    // }, [query.status]);
+
+    if(query.isLoading) return (<>Loading...</>);
+
+    else if(query.isError) return (<>Error loading schedule</>);
+
+    else if(query.isSuccess) {
+
+        return (<>
+            <Settings
+                show={showSettings}
+                handleClose={() => setShowSettings(false)}
+            />
+            {/* <div>
+                        <Button className="btn-stick-left">New Schedule</Button>
+                        <Button className="btn-stick-left" variant="light">Open Schedule</Button>
+                        <Button
+                            variant='light'
+                            onClick={() => setShowSettings(true)}
+                            className='btn-stick-right'
+                        >
+                            <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
+                            Settings
+                        </Button>
+                        <Button className="btn-stick-right" variant="light">
+                            <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faFloppyDisk} />
+                            Save
+                        </Button>
+                    </div>
+                    <div className="separator" /> */}
+            <ViewControl
+                view={view}
+                setView={setView}
+                dayView={dayView}
+                setDayView={setDayView}
+                setShowSettings={setShowSettings}
+                startDates={query.data.startDates.map((el) => moment(el))}
+            />
+            <Scheduler
+                view={view}
+                dayView={dayView}
+            />
+        </>)
+    }
 }
 
 function LandingView() {
     return (
         <div id="landing-view">
             <h1>Welcome to the RYLA Scheduler!</h1>
-            <p>{"To create a schedule, select File > New..."}<br/>
-            {"To open a schedule, select File > Open..."}
+            <p>{"To create a schedule, select File > New..."}<br />
+                {"To open a schedule, select File > Open..."}
             </p>
         </div>
     )

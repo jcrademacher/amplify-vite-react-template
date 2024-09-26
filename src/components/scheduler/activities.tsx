@@ -59,8 +59,13 @@ export const checkActivityCreate = (startTime: moment.Moment, duration: number, 
     let canCreateActs = checkTimeDurationInObject(startTime, duration, acts);
     let canCreateGacts = checkTimeDurationInObject(startTime, duration, gacts);
 
+    // console.log(canCreateActs);
+    // console.log(canCreateGacts);
+
     let actEnd = startTime.clone();
     actEnd.add(duration,'hours');
+
+    // console.log("activity end", actEnd);
 
     if(actEnd.diff(dayEnd) > 0) {
         return false;

@@ -1,9 +1,7 @@
 import { View } from '../../pages/scheduling-page'
 import '../../styles/scheduler.scss'
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import moment from 'moment';
-
-import { useQuery } from '@tanstack/react-query';
 import { checkActivityCreate, checkGlobalActivityCreate, ScheduledGlobalActivity } from './activities';
 
 import { ActivityPrototype } from '../../api/apiActivityPrototype';
@@ -16,23 +14,10 @@ interface SchedulerProps {
     view: View,
     dayView: number
 }
-
-let initDate = moment("2024-06-28 07:00:00.000");
-const times: moment.Moment[] = [];
-
-for (let i = 0; i < 31; i++) {
-    // console.log(initDate.toLocaletimeString());
-    times.push(initDate.clone());
-    initDate.add(30, 'minutes');
-}
-
-// console.log(times.map((t) => t.toString()));
-export const getTimes = () => times;
 // console.log(getTimes());
 
 // const times = range(700,2030,30);
 
-import { getActivityPrototypesMapped } from '../../api/apiActivityPrototype';
 import { ScheduledActivity, Workarea, addActivity, removeActivity, updateActivity } from './activities';
 
 import {
@@ -44,17 +29,20 @@ import {
 } from './types';
 
 import { useHistoryState } from '@uidotdev/usehooks';
-
-
+import { ScheduleContext } from '../../App';
+import { Schedule } from '../../api/apiSchedule';
+import { useActivityPrototypesQuery, useScheduleQuery } from '../../queries';
 
 // let tmoment: (m: string) => moment.Moment = (m: string) => moment(`2024-01-01 ${m}`);
 
 export default function Scheduler({ dayView }: SchedulerProps) {
-   
-    const actProtoQuery = useQuery({
-        queryKey: ['activityPrototypesMapped'],
-        queryFn: getActivityPrototypesMapped
-    });
+
+    const schContext = useContext(ScheduleContext);
+
+    const actProtoQuery = useActivityPrototypesQuery(schContext.id as string);
+    const schQuery = useScheduleQuery(schContext.id as string);
+
+    const schedule: Schedule | null = schQuery.data ? schQuery.data : null;
 
     const activities = actProtoQuery.data ? actProtoQuery.data : {};
     let { state, set, undo, redo } = useHistoryState<ScheduleObject>({
@@ -93,12 +81,8 @@ export default function Scheduler({ dayView }: SchedulerProps) {
     });
     // const [thisDayStart, setThisDayStart] = useState<moment.Moment>(initDate);
 
-    let thisDayStart = times[0].clone();
-    thisDayStart.add(dayView - 1, 'days');
-
-    let thisDayEnd = times[times.length-1].clone();
-    thisDayEnd.add(dayView-1,'days');
-    thisDayEnd.add(30,'minutes');
+    let thisDayStart = moment(schedule?.startDates[dayView-1]);
+    let thisDayEnd = moment(schedule?.endDates[dayView-1]);
 
     // const testGactStart = times[4].clone();
     // testGactStart.add(1,"day");
@@ -186,7 +170,10 @@ export default function Scheduler({ dayView }: SchedulerProps) {
         let acts = localSch.acts[id];
         acts = acts ? {...acts} : {};
 
+        console.log(thisDayEnd);
+
         let canCreate = checkActivityCreate(time, actProto.duration, thisDayEnd, acts, localSch.globalActs);
+        // console.log(canCreate);
 
         if (canCreate) {
             // acts.splice(insertAt, 0, newAct);
@@ -275,25 +262,32 @@ export default function Scheduler({ dayView }: SchedulerProps) {
     };
     
 
-    const renderTimes: () => JSX.Element[] = () => (
-        times.map((time, index) => (
-            <div key={index} className='time'>{time.format("h:mm a")}</div>
-        ))
-    );
+    const renderTimes: () => JSX.Element[] = () => {
+        let time = thisDayStart.clone();
+
+        let retval = [];
+
+        while(time.diff(thisDayEnd) < 0) {
+            retval.push(<div className="time" key={time.toISOString()}>{time.format('h:mm A')}</div>);
+            time.add(30,'minutes');
+        }
+
+        return retval;
+    };
 
     const renderColumn: (el: ActivityPrototype) => JSX.Element[] = (el) => {
 
         let thisActs = localSch.acts[el.id]; //?.filter((a) => a.startTime.isSame(thisDayStart, 'day'));
         // console.log(thisActsTimes);
         let retval = [<div className={`header ${el.type}`} key={el.id}>{el.name}</div>];
-        let i = 0;
+        // let i = 0;
+        let time = thisDayStart.clone();
         // let acti = thisActs?.findIndex((a) => a.startTime.isSame(thisDayStart, 'day'));
         // let gacti = localGlobalActs.findIndex((ga) => ga.startTime.isSame(thisDayStart, 'day'));
 
-        while (i < times.length) {
+        while (time.diff(thisDayEnd) < 0) {
             // console.log(i);
-            let time = times[i].clone();
-            time.add(dayView - 1, 'days');
+            let timeIndex = time.diff(thisDayStart, 'hours', true)*2;
             let timeKey = time.toISOString();
 
             let gact = localSch.globalActs[timeKey];
@@ -301,7 +295,8 @@ export default function Scheduler({ dayView }: SchedulerProps) {
 
             if (gactStartTime && gactStartTime.isSame(time)) {
                 // console.log(i);
-                i = i + gact.duration * 2;
+                // i = i + gact.duration * 2;
+                time.add(gact.duration, 'hours');
 
                 // console.log("continued");
                 continue;
@@ -317,22 +312,23 @@ export default function Scheduler({ dayView }: SchedulerProps) {
                 schEl = (
                     <ScheduledActivity
                         activeAct={thisActs[timeKey]}
-                        timeIndex={i}
+                        timeIndex={timeIndex}
                         duration={el.duration}
                         groupSize={el.groupSize}
                         handleDelete={handleDeleteActivity}
                         handleSave={handleSaveActivity}
-                        key={i}
+                        key={timeIndex}
                     />
                 );
-                i = i + el.duration * 2;
+                // i = i + el.duration * 2;
+                time.add(el.duration, 'hours');
             }
             else {
                 schEl = (
                     <Workarea
-                        key={i}
+                        key={timeIndex}
                         id={el.id}
-                        time={time}
+                        time={time.clone()}
                         handleMoveActivity={handleMoveActivity}
                         handleMoveGlobalActivity={handleMoveGlobalActivity}
                         handleCreate={handleCreateActivity}
@@ -341,7 +337,8 @@ export default function Scheduler({ dayView }: SchedulerProps) {
                         setState={setGactState}
                     />
                 );
-                ++i;
+                // ++i;
+                time.add(30,'minutes');
             }
 
             retval.push(schEl);
@@ -350,7 +347,7 @@ export default function Scheduler({ dayView }: SchedulerProps) {
         return retval;
     }
 
-    if (actProtoQuery.isPending) {
+    if (actProtoQuery.isLoading) {
         return <div>Loading...</div>
     }
     else if (actProtoQuery.isError) {
@@ -360,12 +357,13 @@ export default function Scheduler({ dayView }: SchedulerProps) {
         // console.log(activities);
         const containerStyle = {
             gridTemplateColumns: `repeat(${Object.keys(activities).length + 1}, minmax(50px,1fr))`,
-            gridTemplateRows: `40px repeat(${times.length}, minmax(10px,1fr))`
+            gridTemplateRows: `40px repeat(${thisDayEnd.diff(thisDayStart,'hours',true)*2}, minmax(10px,1fr))`
         };
+        
 
         return (
             <DndProvider backend={HTML5Backend}>
-                <div id="scheduler" style={containerStyle} onMouseUp={() => setGactState({ status: GlobalActivityDragStatus.NONE })}>
+                <div id='scheduler' style={containerStyle} onMouseUp={() => setGactState({ status: GlobalActivityDragStatus.NONE })}>
                     <div className='header' />
                     {renderTimes()}
                     {renderGlobalActivities()}
