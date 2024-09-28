@@ -23,7 +23,7 @@ function App() {
     const [savingSchedule, setSavingSchedule] = useState(false);
 
     return (
-        <Authenticator>
+        <Authenticator hideSignUp>
             {({ signOut }) => {
 
                 return (
