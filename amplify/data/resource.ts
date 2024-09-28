@@ -44,7 +44,7 @@ const schema = a.schema({
     ActivityPrototype: a
         .model({
             activities: a.hasMany('LegActivity', 'activityPrototypeId'),
-            scheduleId: a.id().required(),
+            scheduleId: a.id(),
             schedule: a.belongsTo('Schedule', 'scheduleId'),
             name: a.string().required(),
             duration: a.float().required(),
