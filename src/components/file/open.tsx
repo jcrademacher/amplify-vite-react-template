@@ -1,6 +1,4 @@
-import { useContext, useState } from "react";
-
-import { ScheduleContext } from "../../App";
+import { useState } from "react";
 
 import { Schedule } from "../../api/apiSchedule";
 import moment from "moment";
@@ -9,10 +7,12 @@ import { Col, Button, Spinner } from "react-bootstrap";
 import '../../styles/fileopen.scss';
 import { useSchedulesQuery } from "../../queries";
 
+import { useNavigate } from "react-router-dom";
+
 
 interface ScheduleListElementProps {
     schedule: Schedule,
-    handleSelect: ()=> void,
+    handleSelect: () => void,
     selected: boolean
 }
 
@@ -42,6 +42,9 @@ interface FileOpenModalProps {
     handleCancel: () => void
 }
 
+import Placeholder from 'react-bootstrap/Placeholder';
+import { navigateToSchedule } from "../../utils/router";
+
 export function FileOpenModal({ handleCancel }: FileOpenModalProps) {
 
     const query = useSchedulesQuery();
@@ -49,17 +52,24 @@ export function FileOpenModal({ handleCancel }: FileOpenModalProps) {
     const [opening, setOpening] = useState(false);
     const [selectedId, setSelectedId] = useState("");
 
-    const schContext = useContext(ScheduleContext);
+    const navigate = useNavigate();
 
     const handleOpen = () => {
         setOpening(true);
-        schContext.setId(selectedId);
+
         handleCancel();
+        navigateToSchedule(navigate, selectedId);
     }
 
     let schContent;
 
-    if (query.isLoading) schContent = (<div>Loading...</div>);
+    if (query.isLoading || query.isFetching)
+        schContent = (
+            <Placeholder animation="glow">
+                <Placeholder xs={12} />
+                <Placeholder xs={12} />
+            </Placeholder>
+        );
     else if (query.isError) schContent = (<div>Error: {query.error.message}</div>);
     else if (query.isSuccess) {
         schContent = (
@@ -85,9 +95,9 @@ export function FileOpenModal({ handleCancel }: FileOpenModalProps) {
                     </div>
                     {query.data.map((el) => {
                         return (
-                            <ScheduleListElement 
-                                key={el.id} 
-                                schedule={el} 
+                            <ScheduleListElement
+                                key={el.id}
+                                schedule={el}
                                 handleSelect={() => setSelectedId(el.id)}
                                 selected={selectedId === el.id}
                             />

@@ -41,6 +41,7 @@ export async function mutateSchedule(data: UpdateSchedule): Promise<void> {
     const retval = await client.models.Schedule.update(data);
     
     if(!retval.errors && retval.data) {
+        console.log(retval.data);
         return;
     }
     else {

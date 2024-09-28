@@ -51,7 +51,7 @@ export async function mutateActivityPrototype(data: ActivityPrototype): Promise<
         retval = await client.models.ActivityPrototype.create(data);
     }
 
-    if(!retval.errors && retval.data) {
+    if(!retval.errors) {
         return;
     } 
     else {
@@ -62,5 +62,12 @@ export async function mutateActivityPrototype(data: ActivityPrototype): Promise<
 
 export async function deleteActivityPrototype(id: string): Promise<void> {
     const { errors } = await client.models.ActivityPrototype.delete({ id });
-    console.log(errors);
+
+    if(!errors) {
+        return;
+    }
+    else {
+        console.log(errors);
+        throw new Error(errors?.map((el) => el.message).join(', '));
+    }
 }

@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Schedule, getSchedule, getSchedules } from "../api/apiSchedule";
-import { ActivityPrototypeMap, getActivityPrototypesMapped } from "../api/apiActivityPrototype"; 
+import { getSchedule, getSchedules } from "../api/apiSchedule";
+import { ActivityPrototypeMap, getActivityPrototypesMapped } from "../api/apiActivityPrototype";
+import { getActivitiesMapped, getGlobalActivitiesMapped } from "../api/apiActivity"; 
 
 export function useScheduleQuery(id: string) {
-    return useQuery<Schedule>({
+    return useQuery({
         queryKey: ["schedule", id],
         queryFn: async () => getSchedule(id),
         staleTime: 60*1000,
@@ -12,7 +13,7 @@ export function useScheduleQuery(id: string) {
 }
 
 export function useActivityPrototypesQuery(id: string) {
-    return useQuery<ActivityPrototypeMap>({
+    return useQuery({
         queryKey: ["activityPrototypes", id],
         queryFn: async () => getActivityPrototypesMapped(id),
         staleTime: 60*1000,
@@ -21,8 +22,30 @@ export function useActivityPrototypesQuery(id: string) {
 }
 
 export function useSchedulesQuery() {
-    return useQuery<Schedule[]>({
+    return useQuery({
         queryKey: ['schedules'],
-        queryFn: getSchedules
+        queryFn: getSchedules,
+        staleTime: 60*1000,
+        refetchOnWindowFocus: false
     });
+}
+
+export function useActivitiesQuery(id: string, protos: ActivityPrototypeMap | undefined) {
+    return useQuery({
+        queryKey: ['activity', id],
+        queryFn: async () => getActivitiesMapped(protos as ActivityPrototypeMap),
+        enabled: !!protos,
+        staleTime: 60*1000,
+        refetchOnWindowFocus: false
+    })
+}
+
+export function useGlobalActivitiesQuery(id: string, protos: ActivityPrototypeMap | undefined) {
+    return useQuery({
+        queryKey: ['globalActivity', id],
+        queryFn: async () => getGlobalActivitiesMapped(id),
+        enabled: !!protos,
+        staleTime: 60*1000,
+        refetchOnWindowFocus: false
+    })
 }

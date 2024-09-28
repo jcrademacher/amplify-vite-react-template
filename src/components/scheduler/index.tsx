@@ -1,6 +1,6 @@
 import { View } from '../../pages/scheduling-page'
 import '../../styles/scheduler.scss'
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import moment from 'moment';
 import { checkActivityCreate, checkGlobalActivityCreate, ScheduledGlobalActivity } from './activities';
 
@@ -9,11 +9,6 @@ import { ActivityPrototype } from '../../api/apiActivityPrototype';
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 // import { Activity } from '../../api/apiActivity';
-
-interface SchedulerProps {
-    view: View,
-    dayView: number
-}
 // console.log(getTimes());
 
 // const times = range(700,2030,30);
@@ -21,47 +16,83 @@ interface SchedulerProps {
 import { ScheduledActivity, Workarea, addActivity, removeActivity, updateActivity } from './activities';
 
 import {
-    LocalActivity,
-    GlobalActivity,
     GlobalActivityDragStatus,
     GlobalActivityState,
     ScheduleObject
 } from './types';
 
 import { useHistoryState } from '@uidotdev/usehooks';
-import { ScheduleContext } from '../../App';
 import { Schedule } from '../../api/apiSchedule';
-import { useActivityPrototypesQuery, useScheduleQuery } from '../../queries';
+import { LocalLegActivity, LocalGlobalActivity, saveActivities } from '../../api/apiActivity';
+import { useActivityPrototypesQuery, useActivitiesQuery, useScheduleQuery, useGlobalActivitiesQuery } from '../../queries';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useScheduleIDMatch } from '../../utils/router';
+
+import { emitToast, ToastType } from '../notifications';
 
 // let tmoment: (m: string) => moment.Moment = (m: string) => moment(`2024-01-01 ${m}`);
 
-export default function Scheduler({ dayView }: SchedulerProps) {
+interface SchedulerProps {
+    view: View,
+    dayView: number,
+    saveSchedule: {
+        saving: boolean,
+        setSaving: (state: boolean) => void
+    }
+}
 
-    const schContext = useContext(ScheduleContext);
+export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
+    const match = useScheduleIDMatch();
+    const scheduleId = match?.params.scheduleId as string;
 
-    const actProtoQuery = useActivityPrototypesQuery(schContext.id as string);
-    const schQuery = useScheduleQuery(schContext.id as string);
+    const actProtoQuery = useActivityPrototypesQuery(scheduleId);
+    const schQuery = useScheduleQuery(scheduleId);
+    const actQuery = useActivitiesQuery(scheduleId, actProtoQuery.data);
+    const gactQuery = useGlobalActivitiesQuery(scheduleId, actProtoQuery.data);
 
     const schedule: Schedule | null = schQuery.data ? schQuery.data : null;
 
     const activities = actProtoQuery.data ? actProtoQuery.data : {};
-    let { state, set, undo, redo } = useHistoryState<ScheduleObject>({
+
+    let { state, set, undo, redo, canRedo, canUndo } = useHistoryState<ScheduleObject>({
         acts: {},
         globalActs: {}
     });
-    
+
+    // const [deletedActIDs, setDeletedActIDs] = useState<string[]>([]);
+    // const [deletedGactIDs, setDeletedGactIDs] = useState<string[]>([]);
+
     let localSch = state;
     let setLocalSch = set;
 
+    const queryClient = useQueryClient();
+
+    const [syncState, setSyncState] = useState(false);
+
+    useEffect(() => {
+        if (actQuery.data && gactQuery.data) {
+            // console.log(actQuery.data);
+            setLocalSch({
+                globalActs: { ...localSch.globalActs, ...gactQuery.data },
+                acts: { ...localSch.acts, ...actQuery.data }
+            });
+        }
+    }, [actQuery.data, gactQuery.data, syncState]);
+
     const handleUndo = (evt: KeyboardEvent) => {
         evt.stopImmediatePropagation();
-        if ((evt.key === 'Z' || evt.key === 'z') && (evt.ctrlKey || evt.metaKey) && !evt.shiftKey) {
-            undo();
-            console.log("undo");
-        } 
+        if ((evt.key === 'Z' || evt.key === 'z') && (evt.ctrlKey || evt.metaKey) && !evt.shiftKey ) {
+            if(canUndo)
+                undo();
+            else
+                emitToast("Cannot undo after save", ToastType.Warning);
+            // console.log("undo");
+        }
         else if ((evt.key === 'Z' || evt.key === 'z') && (evt.ctrlKey || evt.metaKey) && evt.shiftKey) {
-            redo();
-            console.log("redo");
+            if(canRedo)
+                redo();
+            else
+                emitToast("Cannot redo after save", ToastType.Warning);
         }
     }
 
@@ -71,9 +102,9 @@ export default function Scheduler({ dayView }: SchedulerProps) {
         return () => {
             window.removeEventListener('keydown', handleUndo);
         }
-    },[undo, redo]);
-    
-    
+    }, [undo, redo]);
+
+
     // const [localSchActs, setLocalSchActs] = useState<LocalActivityMap>({});
 
     const [gactState, setGactState] = useState<GlobalActivityState>({
@@ -81,23 +112,54 @@ export default function Scheduler({ dayView }: SchedulerProps) {
     });
     // const [thisDayStart, setThisDayStart] = useState<moment.Moment>(initDate);
 
-    let thisDayStart = moment(schedule?.startDates[dayView-1]);
-    let thisDayEnd = moment(schedule?.endDates[dayView-1]);
+    let thisDayStart = moment(schedule?.startDates[dayView - 1]);
+    let thisDayEnd = moment(schedule?.endDates[dayView - 1]);
 
     // const testGactStart = times[4].clone();
     // testGactStart.add(1,"day");
     // console.log(testGactStart.toString());
 
-    const handleMoveActivity = (newId: string, newTime: moment.Moment, oldAct: LocalActivity) => {
-        let newActs = localSch.acts[newId] ? {...localSch.acts[newId]} : {};
+    const saveSchMutation = useMutation({
+        mutationKey: ['saveSchedule', scheduleId],
+        mutationFn: async () => saveActivities(actQuery.data, gactQuery.data, localSch.acts, localSch.globalActs),
+        onSuccess: (data) => {
+            // console.log("Success");
+            saveSchedule.setSaving(false);
+            // clear();
+            // queryClient.invalidateQueries();
+            queryClient.setQueryData(['activity', scheduleId], data.acts);
+            queryClient.setQueryData(['globalActivity', scheduleId], data.gacts);
+            setSyncState((s) => !s);
+
+            emitToast("Changes saved", ToastType.Success);
+        },
+        onError: (error) => {
+            saveSchedule.setSaving(false);
+            setSyncState((s) => !s);
+            emitToast(`Error saving schedule: ${error.message}`, ToastType.Error);
+        },
+        onMutate: () => {
+        }
+    });
+
+    useEffect(() => {
+        if (saveSchedule.saving) {
+            // console.log("saving");
+            saveSchMutation.mutate();
+        }
+
+    }, [saveSchedule.saving]);
+
+    const handleMoveActivity = (newId: string, newTime: moment.Moment, oldAct: LocalLegActivity) => {
+        let newActs = localSch.acts[newId] ? { ...localSch.acts[newId] } : {};
         let oldId = oldAct.activityPrototypeId;
-        let oldActs = {...localSch.acts[oldId]}; 
+        let oldActs = { ...localSch.acts[oldId] };
 
         let newActProto = activities[newId];
         let sameProto = newId === oldAct.activityPrototypeId;
-        
-        if(sameProto) {
-            removeActivity(oldAct,newActs);
+
+        if (sameProto) {
+            removeActivity(oldAct, newActs);
         }
         let canCreate = checkActivityCreate(newTime, newActProto.duration, thisDayEnd, newActs, localSch.globalActs);
 
@@ -115,70 +177,62 @@ export default function Scheduler({ dayView }: SchedulerProps) {
             }
 
             newAct.activityPrototypeId = newId;
-            newAct.startTime = newTime;
+            newAct.startTime = newTime.toISOString();
 
-            addActivity(newAct,newActs);
+            addActivity(newAct, newActs);
 
-            if(sameProto) {
-                removeActivity(oldAct,newActs);
+            if (sameProto) {
+                removeActivity(oldAct, newActs);
 
-                setLocalSch({ ...localSch, acts: { ...localSch.acts, [newId]: newActs }});
+                setLocalSch({ ...localSch, acts: { ...localSch.acts, [newId]: newActs } });
             }
             else {
-                removeActivity(oldAct,oldActs);
+                removeActivity(oldAct, oldActs);
 
-                setLocalSch({ ...localSch, acts: { ...localSch.acts, [oldId]: oldActs, [newId]: newActs }});
+                setLocalSch({ ...localSch, acts: { ...localSch.acts, [oldId]: oldActs, [newId]: newActs } });
             }
-
-            console.log(oldActs);
-            console.log(newActs);
-            
         }
     }
 
-    const handleMoveGlobalActivity = (newTime: moment.Moment, oldAct: GlobalActivity) => {
-        let newAct: GlobalActivity = { ...oldAct, startTime: newTime };
+    const handleMoveGlobalActivity = (newTime: moment.Moment, oldAct: LocalGlobalActivity) => {
+        let newAct: LocalGlobalActivity = { ...oldAct, startTime: newTime.toISOString() };
         // let oldIndex = curGacts.findIndex((el) => isEqual(el, oldAct));
 
-        let newGacts = {...localSch.globalActs};
-        removeActivity(oldAct,newGacts);
+        let newGacts = { ...localSch.globalActs };
+        removeActivity(oldAct, newGacts);
 
         let canCreate = checkGlobalActivityCreate(newTime, oldAct.duration, thisDayEnd, activities, localSch.acts, newGacts);
 
         if (canCreate) {
-            addActivity(newAct,newGacts);
-            
-            setLocalSch({...localSch, globalActs: newGacts});
+            addActivity(newAct, newGacts);
+
+            setLocalSch({ ...localSch, globalActs: newGacts });
         }
     }
 
     const handleCreateActivity = (id: string, time: moment.Moment) => {
-        var newAct: LocalActivity;
+        var newAct: LocalLegActivity;
 
         // console.log(existingAct);
         let actProto = activities[id];
 
         newAct = {
-            scheduleId: "fsadkl",
-            startTime: time,
+            startTime: time.toISOString(),
             shadow: false,
             leg: [0],
-            supportName: "",
             activityPrototypeId: id
         };
 
         let acts = localSch.acts[id];
-        acts = acts ? {...acts} : {};
-
-        console.log(thisDayEnd);
+        acts = acts ? { ...acts } : {};
 
         let canCreate = checkActivityCreate(time, actProto.duration, thisDayEnd, acts, localSch.globalActs);
         // console.log(canCreate);
 
         if (canCreate) {
             // acts.splice(insertAt, 0, newAct);
-            addActivity(newAct,acts);
-            setLocalSch({ ...localSch, acts: { ...localSch.acts, [id]: acts }});
+            addActivity(newAct, acts);
+            setLocalSch({ ...localSch, acts: { ...localSch.acts, [id]: acts } });
         }
     }
 
@@ -189,9 +243,11 @@ export default function Scheduler({ dayView }: SchedulerProps) {
         if (startTime && endTime && endTime.diff(startTime) >= 0) {
             let duration = endTime.diff(startTime, "hours", true) + 0.5;
 
-            let newAct = {
-                startTime: startTime,
-                duration: duration
+            let newAct: LocalGlobalActivity = {
+                startTime: startTime.toISOString(),
+                duration: duration,
+                name: "",
+                scheduleId: scheduleId
             };
 
             // console.log(newAct);
@@ -199,55 +255,64 @@ export default function Scheduler({ dayView }: SchedulerProps) {
 
             if (canCreate) {
                 // console.log(insertAt);
-                let newGacts = {...localSch.globalActs};
-                addActivity(newAct,newGacts);
+                let newGacts = { ...localSch.globalActs };
+                addActivity(newAct, newGacts);
 
-                setLocalSch({...localSch, globalActs: newGacts});
+                setLocalSch({ ...localSch, globalActs: newGacts });
             }
         }
     }
 
-    const handleSaveGlobalActivity = (newGact: GlobalActivity) => {
-        const gacts = {...localSch.globalActs};
+    const handleSaveGlobalActivity = (newGact: LocalGlobalActivity) => {
+        const gacts = { ...localSch.globalActs };
         // newGacts[newGact.startTime] = newGact;
-        updateActivity(newGact,gacts);
-        setLocalSch({...localSch, globalActs: gacts});
+        updateActivity(newGact, gacts);
+        setLocalSch({ ...localSch, globalActs: gacts });
     }
 
-    const handleDeleteGlobalActivity = (newGact: GlobalActivity) => {
-        const gacts = {...localSch.globalActs};
-        removeActivity(newGact,gacts)
-        setLocalSch({...localSch, globalActs: gacts});
+    const handleDeleteGlobalActivity = (newGact: LocalGlobalActivity) => {
+        const gacts = { ...localSch.globalActs };
+        removeActivity(newGact, gacts)
+        setLocalSch({ ...localSch, globalActs: gacts });
+
+        // if (newGact.id) {
+        //     setDeletedGactIDs([...deletedGactIDs, newGact.id]);
+        // }
     }
 
-    const handleSaveActivity = (newAct: LocalActivity) => {
+    const handleSaveActivity = (newAct: LocalLegActivity) => {
         let id = newAct.activityPrototypeId;
-        let acts = {...localSch.acts[id]};
+        let acts = { ...localSch.acts[id] };
 
-        updateActivity(newAct,acts);
-        setLocalSch({ ...localSch, acts: { ...localSch.acts, [id]: acts }});
+        updateActivity(newAct, acts);
+        setLocalSch({ ...localSch, acts: { ...localSch.acts, [id]: acts } });
         // acts[index] = newAct;
         // setLocalSchActs({ ...localSchActs, [id]: acts });
     }
 
-    const handleDeleteActivity = (newAct: LocalActivity) => {
+    const handleDeleteActivity = (newAct: LocalLegActivity) => {
         let id = newAct.activityPrototypeId;
-        let acts = {...localSch.acts[id]};
+        let acts = { ...localSch.acts[id] };
 
-        removeActivity(newAct,acts);
-        setLocalSch({ ...localSch, acts: { ...localSch.acts, [id]: acts }});
+        removeActivity(newAct, acts);
+        setLocalSch({ ...localSch, acts: { ...localSch.acts, [id]: acts } });
+
+        // if (newAct.id) {
+        //     setDeletedActIDs([...deletedActIDs, newAct.id]);
+        // }
     }
 
     const renderGlobalActivities: () => JSX.Element[] = () => {
         let retval = [];
-        for(let key in localSch.globalActs) {
+        for (let key in localSch.globalActs) {
             let gact = localSch.globalActs[key];
-            let timeIndex = gact.startTime.diff(thisDayStart, 'hours', true) * 2;
+            let startTime = moment(gact.startTime)
+            let timeIndex = startTime.diff(thisDayStart, 'hours', true) * 2;
 
-            if (gact.startTime.isSame(thisDayStart, 'date')) {
-                 retval.push(
+            if (startTime.isSame(thisDayStart, 'date')) {
+                retval.push(
                     <ScheduledGlobalActivity
-                        key={gact.startTime.toISOString()}
+                        key={startTime.toISOString()}
                         activeAct={gact}
                         timeIndex={timeIndex}
                         span={Object.keys(activities).length}
@@ -260,26 +325,46 @@ export default function Scheduler({ dayView }: SchedulerProps) {
 
         return retval;
     };
-    
+
 
     const renderTimes: () => JSX.Element[] = () => {
         let time = thisDayStart.clone();
 
         let retval = [];
 
-        while(time.diff(thisDayEnd) < 0) {
+        while (time.diff(thisDayEnd) < 0) {
             retval.push(<div className="time" key={time.toISOString()}>{time.format('h:mm A')}</div>);
-            time.add(30,'minutes');
+            time.add(30, 'minutes');
         }
 
         return retval;
     };
 
+    const renderProtoHeaders: () => JSX.Element[] = () => {
+        let retval = [];
+
+        let keylist = Object.keys(activities);
+
+        for (let i = 0; i < keylist.length; ++i) {
+            let el = activities[keylist[i]];
+
+            let gridColumn = `${i + 1 + 1} / span 1`;
+
+            retval.push(
+                <div className={`header ${el.type}`} key={el.id} style={{ gridRow: '1 / span 1', gridColumn: gridColumn }}>
+                    {el.name}
+                </div>
+            );
+        }
+
+        return retval;
+    }
+
     const renderColumn: (el: ActivityPrototype) => JSX.Element[] = (el) => {
 
         let thisActs = localSch.acts[el.id]; //?.filter((a) => a.startTime.isSame(thisDayStart, 'day'));
         // console.log(thisActsTimes);
-        let retval = [<div className={`header ${el.type}`} key={el.id}>{el.name}</div>];
+        let retval = [];
         // let i = 0;
         let time = thisDayStart.clone();
         // let acti = thisActs?.findIndex((a) => a.startTime.isSame(thisDayStart, 'day'));
@@ -287,13 +372,13 @@ export default function Scheduler({ dayView }: SchedulerProps) {
 
         while (time.diff(thisDayEnd) < 0) {
             // console.log(i);
-            let timeIndex = time.diff(thisDayStart, 'hours', true)*2;
+            let timeIndex = time.diff(thisDayStart, 'hours', true) * 2;
             let timeKey = time.toISOString();
 
             let gact = localSch.globalActs[timeKey];
-            let gactStartTime = gact?.startTime.clone();
+            let gactStartTime = moment(gact?.startTime);
 
-            if (gactStartTime && gactStartTime.isSame(time)) {
+            if (gact?.startTime && gactStartTime.isSame(time)) {
                 // console.log(i);
                 // i = i + gact.duration * 2;
                 time.add(gact.duration, 'hours');
@@ -303,11 +388,11 @@ export default function Scheduler({ dayView }: SchedulerProps) {
             }
 
             let act = thisActs ? thisActs[timeKey] : undefined;
-            let actTime = act?.startTime;
+            let actTime = moment(act?.startTime);
 
             let schEl;
 
-            if (actTime && actTime.isSame(time)) {
+            if (act?.startTime && actTime.isSame(time)) {
                 // console.log(i);
                 schEl = (
                     <ScheduledActivity
@@ -338,7 +423,7 @@ export default function Scheduler({ dayView }: SchedulerProps) {
                     />
                 );
                 // ++i;
-                time.add(30,'minutes');
+                time.add(30, 'minutes');
             }
 
             retval.push(schEl);
@@ -354,22 +439,55 @@ export default function Scheduler({ dayView }: SchedulerProps) {
         return <div>Error</div>
     }
     else if (actProtoQuery.isSuccess) {
-        // console.log(activities);
         const containerStyle = {
             gridTemplateColumns: `repeat(${Object.keys(activities).length + 1}, minmax(50px,1fr))`,
-            gridTemplateRows: `40px repeat(${thisDayEnd.diff(thisDayStart,'hours',true)*2}, minmax(10px,1fr))`
+            gridTemplateRows: `40px repeat(${thisDayEnd.diff(thisDayStart, 'hours', true) * 2}, minmax(10px,1fr))`
         };
-        
 
         return (
             <DndProvider backend={HTML5Backend}>
                 <div id='scheduler' style={containerStyle} onMouseUp={() => setGactState({ status: GlobalActivityDragStatus.NONE })}>
                     <div className='header' />
                     {renderTimes()}
+                    {renderProtoHeaders()}
                     {renderGlobalActivities()}
-                    {...Object.values(activities).map(renderColumn)}
+                    {actQuery.isLoading || actQuery.isFetching || gactQuery.isLoading || gactQuery.isFetching || saveSchedule.saving ?
+                        <LoadingActivitiesView rows={thisDayEnd.diff(thisDayStart, 'hours', true) * 2} cols={Object.keys(activities).length} /> :
+                        Object.values(activities).map(renderColumn)
+                    }
                 </div>
             </DndProvider>
         )
     }
+}
+
+interface LoadingActivitiesViewProps {
+    rows: number,
+    cols: number
+}
+
+import { Spinner } from 'react-bootstrap';
+
+function LoadingActivitiesView({ rows, cols }: LoadingActivitiesViewProps) {
+    // let retval: JSX.Element[] = [];
+
+    // for (let r = 0; r < rows; ++r) {
+    //     for (let c = 0; c < cols; ++c) {
+    //         retval.push(
+    //             <Placeholder className='loading-cell' key={`${r}-${c}`} as='div' animation="glow">
+    //                 <Placeholder as='div' size='sm' />
+    //             </Placeholder>
+    //         );
+    //     }
+    // }
+
+    return (
+        <div className='loading-cell' style={{ gridRow: `2 / span ${rows}`, gridColumn: `2 / span ${cols}` }}>
+            <Spinner
+                as="div"
+                animation="border"
+                role="status"
+            />
+        </div>
+    )
 }

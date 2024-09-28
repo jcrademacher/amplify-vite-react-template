@@ -1,11 +1,12 @@
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { SubmitHandler, useForm, Validate } from 'react-hook-form';
 import Form from 'react-bootstrap/Form';
 
-import { ScheduleContext } from "../../App";
 import { useMutation } from "@tanstack/react-query";
 
-import { CreateSchedule, createSchedule } from "../../api/apiSchedule";
+import { createSchedule } from "../../api/apiSchedule";
+import { navigateToSchedule } from "../../utils/router";
+import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { Row, Col, Button, Spinner } from "react-bootstrap";
 
@@ -13,7 +14,7 @@ import { emitToast, ToastType } from "../notifications";
 
 import '../../styles/filenew.scss';
 
-import { timeFormatKey, startTimeOptions, endTimeOptions, ScheduleSettings, convertFormToDates } from '../forms';
+import { timeFormatKey, startTimeOptions, endTimeOptions, ScheduleSettings } from '../forms';
 
 interface FileNewModalProps {
     handleCancel: () => void
@@ -21,7 +22,7 @@ interface FileNewModalProps {
 
 export function FileNewModal({ handleCancel }: FileNewModalProps) {
 
-    const schContext = useContext(ScheduleContext);
+    const navigate = useNavigate();
 
     const [saving, setSaving] = useState(false);
 
@@ -33,7 +34,7 @@ export function FileNewModal({ handleCancel }: FileNewModalProps) {
 
             // console.log(id);
 
-            schContext.setId(id);
+            navigateToSchedule(navigate, id);
             handleCancel();
 
             emitToast("Created schedule", ToastType.Success)
@@ -98,7 +99,7 @@ export function FileNewModal({ handleCancel }: FileNewModalProps) {
         // console.log(endDates);
 
         mutation.mutate({
-            name: data.name,
+            name: data.name ?? "",
             startDates: startDates,
             endDates: endDates
         });
@@ -159,7 +160,7 @@ export function FileNewModal({ handleCancel }: FileNewModalProps) {
                                 isInvalid={!!errors.startTime}
 
                             >
-                                {startTimeOptions.map((el, i) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                                {startTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
                             </Form.Select>
                             <Form.Text>The time that the schedule should start from each day</Form.Text>
                             <Form.Control.Feedback type="invalid">
@@ -171,7 +172,7 @@ export function FileNewModal({ handleCancel }: FileNewModalProps) {
                         <Form.Group className="form-group">
                             <Form.Label>End Time</Form.Label>
                             <Form.Select {...register("endTime", { required: true })} isInvalid={!!errors.startTime}>
-                                {endTimeOptions.map((el, i) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                                {endTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
                             </Form.Select>
                             <Form.Text>The time that the schedule should end at each day</Form.Text>
                             <Form.Control.Feedback type="invalid">

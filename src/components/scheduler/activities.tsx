@@ -13,14 +13,15 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import Form from 'react-bootstrap/Form';
 
 import {
-    LocalActivity,
-    GlobalActivity,
     GlobalActivityDragStatus,
     GlobalActivityState,
     TimeMap,
-    Activity
+    Activity,
+    LocalIDMap
 } from "./types";
+
 import { ActivityPrototypeMap } from "../../api/apiActivityPrototype";
+import { LocalLegActivity, LocalGlobalActivity } from '../../api/apiActivity';
 
 import { Button } from 'react-bootstrap';
 import { range } from 'lodash';
@@ -28,18 +29,18 @@ import { range } from 'lodash';
 import { useDrag, useDrop } from 'react-dnd';
 
 export function addActivity<T extends Activity>(newAct: T, object: TimeMap<T>) {
-    object[newAct.startTime.toISOString()] = { ...newAct };
+    object[newAct.startTime] = { ...newAct };
 }
 
 export function removeActivity<T extends Activity>(act: T, object: TimeMap<T>) {
-    delete object[act.startTime.toISOString()];
+    delete object[act.startTime];
 }
 
 export function updateActivity<T extends Activity>(newAct: T, object: TimeMap<T>) {
-    object[newAct.startTime.toISOString()] = newAct;
+    object[newAct.startTime] = newAct;
 }
 
-const checkTimeDurationInObject: (startTime: moment.Moment, duration: number, object: TimeMap<LocalActivity> | TimeMap<GlobalActivity>) => boolean = (startTime, duration, object) => {
+const checkTimeDurationInObject: (startTime: moment.Moment, duration: number, object: TimeMap<LocalLegActivity> | TimeMap<LocalGlobalActivity>) => boolean = (startTime, duration, object) => {
     let timeCheck = startTime.clone();
 
     for (let i = 0; i < 2 * duration; ++i) {
@@ -55,7 +56,7 @@ const checkTimeDurationInObject: (startTime: moment.Moment, duration: number, ob
     return true;
 }
 
-export const checkActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, acts: TimeMap<LocalActivity>, gacts: TimeMap<GlobalActivity>) => {
+export const checkActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, acts: TimeMap<LocalLegActivity>, gacts: TimeMap<LocalGlobalActivity>) => {
     let canCreateActs = checkTimeDurationInObject(startTime, duration, acts);
     let canCreateGacts = checkTimeDurationInObject(startTime, duration, gacts);
 
@@ -75,9 +76,9 @@ export const checkActivityCreate = (startTime: moment.Moment, duration: number, 
     
 };
 
-import { LocalActivityMap, ScheduleObjectTypes } from './types';
+import { ScheduleObjectTypes } from './types';
 
-export const checkGlobalActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, actProtos: ActivityPrototypeMap, schActs: LocalActivityMap, gacts: TimeMap<GlobalActivity>) => {
+export const checkGlobalActivityCreate = (startTime: moment.Moment, duration: number, dayEnd: moment.Moment, actProtos: ActivityPrototypeMap, schActs: LocalIDMap<LocalLegActivity>, gacts: TimeMap<LocalGlobalActivity>) => {
     // check against existin global activities
     let canCreate = checkTimeDurationInObject(startTime, duration, gacts);
     if (!canCreate) {
@@ -114,9 +115,9 @@ export const checkGlobalActivityCreate = (startTime: moment.Moment, duration: nu
 interface WorkareaProps {
     id: string,
     time: moment.Moment,
-    handleCreate: (id: string, time: moment.Moment, newAct?: LocalActivity) => void,
-    handleMoveActivity: (newId: string, newTime: moment.Moment, oldAct: LocalActivity) => void,
-    handleMoveGlobalActivity: (newTime: moment.Moment, oldAct: GlobalActivity) => void,
+    handleCreate: (id: string, time: moment.Moment, newAct?: LocalLegActivity) => void,
+    handleMoveActivity: (newId: string, newTime: moment.Moment, oldAct: LocalLegActivity) => void,
+    handleMoveGlobalActivity: (newTime: moment.Moment, oldAct: LocalGlobalActivity) => void,
     state: GlobalActivityState,
     setState: (newState: GlobalActivityState) => void,
     handleCreateGlobalActivity: () => void,
@@ -146,14 +147,14 @@ export function Workarea({
 
     const [{ isOver }, drop] = useDrop(
         () => ({
-            accept: [ScheduleObjectTypes.LocalActivity, ScheduleObjectTypes.GlobalActivity],
-            drop: (item: LocalActivity | GlobalActivity, monitor) => {
+            accept: [ScheduleObjectTypes.LegActivity, ScheduleObjectTypes.GlobalActivity],
+            drop: (item: LocalLegActivity | LocalGlobalActivity, monitor) => {
                 const itemType = monitor.getItemType();
-                if (itemType === ScheduleObjectTypes.LocalActivity) {
-                    handleMoveActivity(id, time, item as LocalActivity);
+                if (itemType === ScheduleObjectTypes.LegActivity) {
+                    handleMoveActivity(id, time, item as LocalLegActivity);
                 }
                 else if (itemType === ScheduleObjectTypes.GlobalActivity) {
-                    handleMoveGlobalActivity(time, item as GlobalActivity);
+                    handleMoveGlobalActivity(time, item as LocalGlobalActivity);
                 }
             },
             collect: (monitor) => ({
@@ -198,12 +199,12 @@ export function Workarea({
 }
 
 export interface ScheduledActivityProps {
-    activeAct: LocalActivity,
+    activeAct: LocalLegActivity,
     timeIndex: number,
     duration: number,
     groupSize: number,
-    handleSave: (newAct: LocalActivity) => void,
-    handleDelete: (newAct: LocalActivity) => void
+    handleSave: (newAct: LocalLegActivity) => void,
+    handleDelete: (newAct: LocalLegActivity) => void
 }
 
 export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, handleDelete, handleSave }: ScheduledActivityProps) {
@@ -255,7 +256,10 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
         handleSubmit,
         formState: { errors },
         reset
-    } = useForm<ActivityOptions>({ values: !activeAct.leg.some((el) => el === 0) ? activeAct : undefined });
+    } = useForm<ActivityOptions>({ values: !activeAct.leg.some((el) => el === 0) ? {
+        leg: activeAct.leg,
+        shadow: activeAct.shadow
+    } : undefined });
 
     // console.log(errors);
 
@@ -289,7 +293,7 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
     }
 
     const [, drag] = useDrag(() => ({
-        type: ScheduleObjectTypes.LocalActivity,
+        type: ScheduleObjectTypes.LegActivity,
         collect: (monitor) => ({
             isDragging: !!monitor.isDragging()
         }),
@@ -362,9 +366,9 @@ export function ScheduledActivity({ activeAct, timeIndex, duration, groupSize, h
 }
 
 interface ScheduledGlobalActivityProps {
-    activeAct: GlobalActivity,
-    handleSave: (newAct: GlobalActivity) => void,
-    handleDelete: (newAct: GlobalActivity) => void,
+    activeAct: LocalGlobalActivity,
+    handleSave: (newAct: LocalGlobalActivity) => void,
+    handleDelete: (newAct: LocalGlobalActivity) => void,
     timeIndex: number,
     span: number
 };

@@ -1,5 +1,4 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
-import { Schedule } from "aws-cdk-lib/aws-events";
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -10,40 +9,50 @@ specifies that any user authenticated via an API key can "create", "read",
 const schema = a.schema({
     Schedule: a
         .model({
-            name: a.string(),
-            startDates: a.datetime().array().required(),
-            endDates: a.datetime().array().required(),
-            activityPrototypes: a.hasMany('ActivityPrototype', 'scheduleId')
+            name: a.string().required(),
+            startDates: a.datetime().required().array().required(),
+            endDates: a.datetime().required().array().required(),
+            activityPrototypes: a.hasMany('ActivityPrototype', 'scheduleId'),
+            globalActivities: a.hasMany('GlobalActivity', 'scheduleId')
         })
         .authorization((allow) => [
             allow.authenticated().to(['create', 'read']),
             allow.owner().to(['create', 'read', 'update'])
         ]),
 
-    Activity: a
+    LegActivity: a
         .model({
-            startTime: a.time().required(),
-            day: a.integer().required(),
-            shadow: a.boolean(), // 0 = no shadow, 1 = shadow
-            leg: a.integer().array().required(),
+            startTime: a.datetime().required(),
+            shadow: a.boolean().required(), // 0 = no shadow, 1 = shadow
+            leg: a.integer().required().array().required(),
             supportName: a.string(),
-            activityPrototypeId: a.id(),
+            activityPrototypeId: a.id().required(),
             activityPrototype: a.belongsTo('ActivityPrototype', 'activityPrototypeId')
+        })
+        .authorization((allow) => [allow.authenticated()]),
+    
+    GlobalActivity: a.
+        model({
+            startTime: a.datetime().required(),
+            name: a.string().required(),
+            duration: a.float().required(),
+            scheduleId: a.id().required(),
+            schedule: a.belongsTo('Schedule', 'scheduleId')
         })
         .authorization((allow) => [allow.authenticated()]),
 
     ActivityPrototype: a
         .model({
-            activities: a.hasMany('Activity', 'activityPrototypeId'),
-            scheduleId: a.id(),
+            activities: a.hasMany('LegActivity', 'activityPrototypeId'),
+            scheduleId: a.id().required(),
             schedule: a.belongsTo('Schedule', 'scheduleId'),
             name: a.string().required(),
             duration: a.float().required(),
             type: a.string().required(),
-            preferredDays: a.integer().array(),
-            requiredDays: a.integer().array(),
+            preferredDays: a.integer().required().array(),
+            requiredDays: a.integer().required().array(),
             groupSize: a.integer().required(),
-            zone: a.string(),
+            zone: a.string().required(),
             isRequired: a.boolean().required()
         })
         .authorization((allow) => [allow.authenticated()])

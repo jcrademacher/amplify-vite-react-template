@@ -3,20 +3,16 @@ import 'react-toastify/dist/ReactToastify.css';
 import Button from 'react-bootstrap/Button';
 import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useContext, useEffect, useState } from 'react';
-import Scheduler from '../components/scheduler';
+import { useState } from 'react';
+import { Scheduler } from '../components/scheduler';
 import Settings from '../components/settings';
 import moment from 'moment';
-import { ScheduleContext } from '../App';
 
 export enum View {
     MASTER = "Master",
     LEG = "Leg",
     SUPPORT = "Support"
 }
-
-
-const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 type ViewControlProps = {
     startDates: moment.Moment[],
@@ -34,7 +30,7 @@ function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewC
         <div id="view-control">
             <span id="view-subselect">
                 {startDates.map((date) => {
-                    let diff = date.diff(startDate,'days') + 1;
+                    let diff = date.diff(startDate, 'days') + 1;
 
                     return (
                         <Button
@@ -46,15 +42,18 @@ function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewC
                         </Button>
                     );
                 })}
-             </span>
-            <Button
-                variant='light'
-                onClick={() => setShowSettings(true)}
-                className='btn-stick-right'
-            >
-                <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
-                Settings
-            </Button>
+            </span>
+            <span>
+                <Button
+                    variant='light'
+                    onClick={() => setShowSettings(true)}
+                    className='btn-stick-right'
+                >
+                    <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
+                    Settings
+                </Button>
+            </span>
+
 
             {/* <ButtonGroup id='view-control-buttons'>
                 <Button
@@ -74,35 +73,44 @@ function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewC
     )
 }
 
+interface SchedulingPageProps {
+    saveSchedule: {
+        saving: boolean,
+        setSaving: (state: boolean) => void
+    }
+}
 
-
-export default function SchedulingPage() {
+export default function SchedulingPage({ saveSchedule }: SchedulingPageProps) {
     // const notify = (message: string) => toast(message);
-    const schContext = useContext(ScheduleContext);
-
-
     return (
         <div id="home-page">
             <div id="content">
-                {schContext.id ? <ScheduleView /> : <LandingView />}
+                <ScheduleView saveSchedule={saveSchedule}/> 
             </div>
-            {/* <ActivityManager/> */}
-            {/* <ToastContainer/> */}
         </div>
     )
 }
 
 import { useScheduleQuery } from '../queries';
+import { useScheduleIDMatch } from '../utils/router';
 
-function ScheduleView() {
+interface ScheduleViewProps {
+    saveSchedule: {
+        saving: boolean,
+        setSaving: (state: boolean) => void
+    }
+}
+
+function ScheduleView({ saveSchedule }: ScheduleViewProps) {
     const [view, setView] = useState<View>(View.MASTER);
     const [dayView, setDayView] = useState<number>(1);
     // const [activities, setActivities] = useState<Schema["ActivityPrototype"]["type"][]>([]);
     const [showSettings, setShowSettings] = useState(false);
 
-    const schContext = useContext(ScheduleContext);
+    const match = useScheduleIDMatch();
+    const scheduleId = match?.params.scheduleId as string;
 
-    const query = useScheduleQuery(schContext.id as string);
+    const query = useScheduleQuery(scheduleId);
 
 
     // useEffect(() => {
@@ -112,11 +120,11 @@ function ScheduleView() {
     //     }
     // }, [query.status]);
 
-    if(query.isLoading) return (<>Loading...</>);
+    if (query.isLoading) return (<>Loading...</>);
 
-    else if(query.isError) return (<>Error loading schedule</>);
+    else if (query.isError) return (<>Error loading schedule</>);
 
-    else if(query.isSuccess) {
+    else if (query.isSuccess) {
 
         return (<>
             <Settings
@@ -151,18 +159,8 @@ function ScheduleView() {
             <Scheduler
                 view={view}
                 dayView={dayView}
+                saveSchedule={saveSchedule}
             />
         </>)
     }
-}
-
-function LandingView() {
-    return (
-        <div id="landing-view">
-            <h1>Welcome to the RYLA Scheduler!</h1>
-            <p>{"To create a schedule, select File > New..."}<br />
-                {"To open a schedule, select File > Open..."}
-            </p>
-        </div>
-    )
 }

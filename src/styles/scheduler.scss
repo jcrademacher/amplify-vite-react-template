@@ -119,6 +119,19 @@ $border-radius: 10px;
         }
     }
 
+    .loading-cell {
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .placeholder {
+            flex-grow: 1;
+            border-radius: 0px;
+            margin: 5px;
+        }
+    }
+
     .scheduled {
         background-color: rgb(194, 194, 194);
         display: flex;

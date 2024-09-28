@@ -1,11 +1,13 @@
-export type LocalActivity = {
-    scheduleId: string,
-    startTime: moment.Moment,
-    shadow: boolean,
-    leg: number[],
-    supportName: string,
-    activityPrototypeId: string
-};
+import { LocalLegActivity, LocalGlobalActivity } from "../../api/apiActivity";
+
+// export type LocalActivity = {
+//     scheduleId: string,
+//     startTime: moment.Moment,
+//     shadow: boolean,
+//     leg: number[],
+//     supportName: string,
+//     activityPrototypeId: string
+// };
 
 // export type LocalActivityMap = {
 //     [id: string]: LocalActivity[]
@@ -15,23 +17,21 @@ export type TimeMap<T> = {
     [time: string]: T
 }
 
-export type LocalActivityMap = {
-    [id: string]: TimeMap<LocalActivity>
-}
+// export type LocalActivityMap = {
+//     [id: string]: TimeMap<LocalActivity>
+// }
 
-export type GlobalActivity = {
-    startTime: moment.Moment,
-    duration: number, // duration in hours
-    name?: string
-}
+export type LocalIDMap<T> = {
+    [id: string]: TimeMap<T>;
+};
 
 export type ScheduleObject = {
-    acts: LocalActivityMap,
-    globalActs: TimeMap<GlobalActivity>
+    acts: LocalIDMap<LocalLegActivity>,
+    globalActs: TimeMap<LocalGlobalActivity>
 }
 
 export enum ScheduleObjectTypes {
-    LocalActivity = 'LocalActivity',
+    LegActivity = 'LegActivity',
     GlobalActivity = "GlobalActivity"
 }
 
@@ -52,4 +52,4 @@ export type GlobalActivityState = {
     currentCell?: [id: string, time: moment.Moment]
 }
 
-export type Activity = LocalActivity | GlobalActivity;
+export type Activity = LocalLegActivity | LocalGlobalActivity;

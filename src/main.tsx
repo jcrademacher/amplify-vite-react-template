@@ -16,7 +16,8 @@ import { emitToast, ToastType } from "./components/notifications.tsx";
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            networkMode: 'always', // or 'offlineFirst' or 'always'
+            networkMode: 'online', // or 'offlineFirst' or 'always'
+            gcTime: 1000 * 60 * 60 * 24, // 24 hours
         },
     },
     queryCache: new QueryCache({
@@ -32,7 +33,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <BrowserRouter>
                 <App />
             </BrowserRouter>
-            <ReactQueryDevtools initialIsOpen={false} />
+            <ReactQueryDevtools position='right' initialIsOpen={false} />
         </QueryClientProvider>
     </React.StrictMode>
 );

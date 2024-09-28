@@ -1,6 +1,6 @@
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import Form from 'react-bootstrap/Form';
 import Spinner from 'react-bootstrap/Spinner';
 import { useForm, SubmitHandler } from "react-hook-form"
@@ -10,6 +10,7 @@ import { Row, Col, ButtonGroup } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { mutateSchedule, Schedule } from '../api/apiSchedule';
+import { useScheduleIDMatch } from '../utils/router';
 
 import moment from 'moment';
 
@@ -72,17 +73,18 @@ function ActivityAddElement({ saving, handleSave, activeActivity }: ActivityAddE
         reset
     } = useForm<ActivityPrototype>({ values: activeActivity });
 
-    const schContext = useContext(ScheduleContext);
+    const match = useScheduleIDMatch();
+    const scheduleId = match?.params.scheduleId as string;
 
     const onSubmit: SubmitHandler<ActivityPrototype> = async (data) => {
-        handleSave({...data, scheduleId: schContext.id});
+        handleSave({...data, scheduleId: scheduleId});
         // console.log("submitting");
         // console.log(data);
 
         if(!activeActivity) reset();
     };
 
-    const schQuery = useScheduleQuery(schContext.id as string);
+    const schQuery = useScheduleQuery(scheduleId);
 
     const schedule: Schedule | null = schQuery.data ? schQuery.data : null;
 
@@ -176,8 +178,10 @@ import { emitToast, ToastType } from './notifications';
 import { ScheduleSettings, convertFormToDates } from './forms';
 
 function GeneralSettings() {
-    const schContext = useContext(ScheduleContext);
-    const schQuery = useScheduleQuery(schContext.id as string);
+    const match = useScheduleIDMatch();
+    const scheduleId = match?.params.scheduleId as string;
+
+    const schQuery = useScheduleQuery(scheduleId);
 
     const endTime = moment(schQuery.data?.endDates[schQuery.data?.endDates.length-1]);
     endTime.subtract(30,'minutes');
@@ -185,8 +189,7 @@ function GeneralSettings() {
     const {
         register,
         handleSubmit,
-        formState: { errors },
-        reset
+        formState: { errors }
     } = useForm<ScheduleSettings>({ values: {
         name: schQuery.data?.name ? schQuery.data.name : undefined,
         startDate: moment(schQuery.data?.startDates[0]).format("YYYY-MM-DD"),
@@ -239,9 +242,10 @@ function GeneralSettings() {
         const { startDates, endDates } = convertFormToDates(data);
 
         mutation.mutate({
+            name: data.name,
             startDates: startDates,
             endDates: endDates,
-            id: schContext.id as string
+            id: scheduleId
         });
     }
 
@@ -285,7 +289,7 @@ function GeneralSettings() {
                                 isInvalid={!!errors.startTime}
 
                             >
-                                {startTimeOptions.map((el, i) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                                {startTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
                             </Form.Select>
                             <Form.Text>The time that the schedule should start from each day</Form.Text>
                             <Form.Control.Feedback type="invalid">
@@ -297,7 +301,7 @@ function GeneralSettings() {
                         <Form.Group className="form-group">
                             <Form.Label>End Time</Form.Label>
                             <Form.Select {...register("endTime", { required: true })} isInvalid={!!errors.startTime}>
-                                {endTimeOptions.map((el, i) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                                {endTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
                             </Form.Select>
                             <Form.Text>The time that the schedule should end at each day</Form.Text>
                             <Form.Control.Feedback type="invalid">
@@ -324,11 +328,9 @@ function GeneralSettings() {
     )
 }
 
-
 import { useMutation } from '@tanstack/react-query';
 import { mutateActivityPrototype, deleteActivityPrototype } from '../api/apiActivityPrototype';
 import { range } from 'lodash';
-import { ScheduleContext } from '../App';
 import { useActivityPrototypesQuery, useScheduleQuery } from '../queries';
 
 // const emptyActivity: Activity = {} as Activity;
@@ -336,9 +338,10 @@ import { useActivityPrototypesQuery, useScheduleQuery } from '../queries';
 function ManagerSettings() {
     const [editId, setEditId] = useState("");
 
-    const schContext = useContext(ScheduleContext);
+    const match = useScheduleIDMatch();
+    const scheduleId = match?.params.scheduleId as string;
 
-    const query = useActivityPrototypesQuery(schContext.id as string);
+    const query = useActivityPrototypesQuery(scheduleId);
 
     const actProtos = query.data ? Object.keys(query.data).map((k) => query.data[k]) : [];
 
@@ -347,6 +350,11 @@ function ManagerSettings() {
         onSuccess: async () => { 
             await query.refetch()
             setEditId("");
+        },
+        onError: (error) => {
+            setEditId("");
+
+            emitToast(`Error saving prototype: ${error.message}`, ToastType.Error);
         }
     });
 
@@ -355,6 +363,11 @@ function ManagerSettings() {
         onSuccess: async () => {
             await query.refetch()
             setEditId("");
+        },
+        onError: (error) => {
+            setEditId("");
+
+            emitToast(`Error deleting prototype: ${error.message}`, ToastType.Error);
         }
     });
 
@@ -393,7 +406,7 @@ function ManagerSettings() {
 
             {query.isSuccess ? actProtos.map((act) => (
                 act.id === editId ?
-                    <div className='activity-row-grid activity-add-element'>
+                    <div key={act.id} className='activity-row-grid activity-add-element'>
                         <ActivityAddElement
                             handleSave={mutation.mutate}
                             saving={mutation.isPending}
