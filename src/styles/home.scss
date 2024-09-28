@@ -32,10 +32,9 @@
 }
 
 #view-control {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: 1fr;
     margin-bottom: 20px;
 
     .btn {
@@ -51,10 +50,23 @@
     }
     
     #view-subselect {
+        grid-column: 1 / span 3;
+        
         .btn {
             border-radius: 40px;
             margin-right: 5px;
         }
+    }
+
+    #action-btns {
+        display: flex;
+        flex-direction: row-reverse;
+
+        .btn {
+            margin-left: 5px;
+        }
+
+        grid-column: 6 / span 1;
     }
 }
 

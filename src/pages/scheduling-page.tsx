@@ -1,7 +1,7 @@
 import '../styles/home.scss';
 import 'react-toastify/dist/ReactToastify.css';
 import Button from 'react-bootstrap/Button';
-import { faGear } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faMagnifyingGlass, faWrench } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState } from 'react';
 import { Scheduler } from '../components/scheduler';
@@ -28,7 +28,7 @@ function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewC
 
     return (
         <div id="view-control">
-            <span id="view-subselect">
+            <div id="view-subselect">
                 {startDates.map((date) => {
                     let diff = date.diff(startDate, 'days') + 1;
 
@@ -42,17 +42,23 @@ function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewC
                         </Button>
                     );
                 })}
-            </span>
-            <span>
+            </div>
+            <div id='action-btns'>
                 <Button
                     variant='light'
                     onClick={() => setShowSettings(true)}
-                    className='btn-stick-right'
                 >
                     <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
                     Settings
                 </Button>
-            </span>
+                <Button
+                    variant='light'
+                    onClick={() => {}}
+                >
+                    <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faWrench} />
+                    Analyze
+                </Button>
+            </div>
 
 
             {/* <ButtonGroup id='view-control-buttons'>
