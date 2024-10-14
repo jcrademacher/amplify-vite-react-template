@@ -31,11 +31,42 @@
     
 }
 
+#status-bar {
+    margin-bottom: 5px;
+    #info-bar {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
+    #analysis-bar {
+        display: flex;
+        align-items: center;
+        justify-content: right;
+
+
+    }
+
+    .analysis-count {
+        padding-left: 5px;
+        padding-right: 2px;
+    }
+
+    #last-saved {
+        color: gray;
+        font-size: 12px;
+        display: flex;
+        justify-content: right;
+    }
+}
+
+
+
 #view-control {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: 50% 1fr auto;
     grid-template-rows: 1fr;
-    margin-bottom: 20px;
+    margin-bottom: 5px;
+    
 
     .btn {
         font-size: 14px;
@@ -50,7 +81,7 @@
     }
     
     #view-subselect {
-        grid-column: 1 / span 3;
+        grid-column: 1 / span 1;
         
         .btn {
             border-radius: 40px;
@@ -65,8 +96,6 @@
         .btn {
             margin-left: 5px;
         }
-
-        grid-column: 6 / span 1;
     }
 }
 

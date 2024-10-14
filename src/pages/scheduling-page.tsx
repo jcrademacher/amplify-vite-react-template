@@ -1,12 +1,16 @@
 import '../styles/home.scss';
 import 'react-toastify/dist/ReactToastify.css';
 import Button from 'react-bootstrap/Button';
-import { faGear, faMagnifyingGlass, faWrench } from '@fortawesome/free-solid-svg-icons';
+import { faCircleExclamation, faCircleInfo, faCircleXmark, faGear, faInfo, faMagnifyingGlass, faTriangleExclamation, faWrench } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState } from 'react';
 import { Scheduler } from '../components/scheduler';
 import Settings from '../components/settings';
 import moment from 'moment';
+
+import { useMutationState } from '@tanstack/react-query';
+
+import { useAllActivityiesQuery, useActivityPrototypesQuery } from '../queries';
 
 export enum View {
     MASTER = "Master",
@@ -14,54 +18,93 @@ export enum View {
     SUPPORT = "Support"
 }
 
-type ViewControlProps = {
+type StatusBarProps = {
     startDates: moment.Moment[],
     view: View,
     setView: (view: View) => void,
     dayView: number,
     setDayView: (day: number) => void,
-    setShowSettings: (show: boolean) => void
+    setShowSettings: (show: boolean) => void,
+    saveSchedule: {
+        saving: boolean,
+        setSaving: (saving: boolean) => void,
+        savedAt: moment.Moment | undefined
+    }
 }
 
-function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewControlProps) {
+function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSchedule }: StatusBarProps) {
     let startDate = startDates[0];
+    
+    let { saving, savedAt } = saveSchedule;
+
+    let renderSave = () => {
+        if(saving) {
+            return (
+                <Spinner
+                    as="span"
+                    animation="border"
+                    role="status"
+                    size='sm'
+                />
+            );
+        }
+        else if(savedAt) {
+            return <span>{savedAt.format(" MMM Do [at] h:mm:ss a")}</span>;
+        }
+        else {
+            return <span>never</span>;
+        }
+    };
 
     return (
-        <div id="view-control">
-            <div id="view-subselect">
-                {startDates.map((date) => {
-                    let diff = date.diff(startDate, 'days') + 1;
+        <div id='status-bar'>
+            <div id="view-control">
+                <div id="view-subselect">
+                    {startDates.map((date) => {
+                        let diff = date.diff(startDate, 'days') + 1;
 
-                    return (
-                        <Button
-                            variant={dayView === diff ? "primary" : "light"}
-                            onClick={() => setDayView(diff)}
-                            key={date.toISOString()}
-                        >
-                            {date.format('dddd')} (Day {diff})
-                        </Button>
-                    );
-                })}
-            </div>
-            <div id='action-btns'>
-                <Button
-                    variant='light'
-                    onClick={() => setShowSettings(true)}
-                >
-                    <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
-                    Settings
-                </Button>
-                <Button
-                    variant='light'
-                    onClick={() => {}}
-                >
-                    <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faWrench} />
-                    Analyze
-                </Button>
-            </div>
+                        return (
+                            <Button
+                                variant={dayView === diff ? "primary" : "light"}
+                                onClick={() => setDayView(diff)}
+                                key={date.toISOString()}
+                            >
+                                {date.format('dddd')} (Day {diff})
+                            </Button>
+                        );
+                    })}
+                </div>
+                <div id='info-bar'>
+                    <div id="analysis-bar">
+                        <FontAwesomeIcon className='analysis-count' color="green" icon={faCircleInfo} />
+                        <span>0</span>
+                        <FontAwesomeIcon className='analysis-count' color="#dbb402" icon={faTriangleExclamation} />
+                        <span>0</span>
+                        <FontAwesomeIcon className='analysis-count' color="red" icon={faCircleXmark} />
+                        <span>0</span>
+                    </div>
+                    <span id='last-saved'>Last saved:&nbsp;{renderSave()}</span>
+                    
+                </div>
+                <div id='action-btns'>
+                    <Button
+                        variant='light'
+                        onClick={() => setShowSettings(true)}
+                    >
+                        <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faGear} />
+                        Settings
+                    </Button>
+                    <Button
+                        variant='light'
+                        onClick={() => { }}
+                    >
+                        <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faWrench} />
+                        Analyze
+                    </Button>
 
+                </div>
 
-            {/* <ButtonGroup id='view-control-buttons'>
+                {/* <ButtonGroup id='view-control-buttons'>
                 <Button
                     variant={view === View.MASTER ? 'primary' : 'light'}
                     onClick={() => setView(View.MASTER)}
@@ -75,7 +118,9 @@ function ViewControl({ startDates, dayView, setDayView, setShowSettings }: ViewC
                     onClick={() => setView(View.SUPPORT)}
                 >{View.SUPPORT} View</Button>
             </ButtonGroup> */}
-        </div>
+            </div>
+
+        </div >
     )
 }
 
@@ -91,7 +136,7 @@ export default function SchedulingPage({ saveSchedule }: SchedulingPageProps) {
     return (
         <div id="home-page">
             <div id="content">
-                <ScheduleView saveSchedule={saveSchedule}/> 
+                <ScheduleView saveSchedule={saveSchedule} />
             </div>
         </div>
     )
@@ -99,6 +144,7 @@ export default function SchedulingPage({ saveSchedule }: SchedulingPageProps) {
 
 import { useScheduleQuery } from '../queries';
 import { useScheduleIDMatch } from '../utils/router';
+import { Spinner } from 'react-bootstrap';
 
 interface ScheduleViewProps {
     saveSchedule: {
@@ -117,6 +163,8 @@ function ScheduleView({ saveSchedule }: ScheduleViewProps) {
     const scheduleId = match?.params.scheduleId as string;
 
     const query = useScheduleQuery(scheduleId);
+
+    const [savedAt, setSavedAt] = useState<moment.Moment | undefined>(undefined);
 
 
     // useEffect(() => {
@@ -154,18 +202,19 @@ function ScheduleView({ saveSchedule }: ScheduleViewProps) {
                         </Button>
                     </div>
                     <div className="separator" /> */}
-            <ViewControl
+            <StatusBar
                 view={view}
                 setView={setView}
                 dayView={dayView}
                 setDayView={setDayView}
                 setShowSettings={setShowSettings}
                 startDates={query.data.startDates.map((el) => moment(el))}
+                saveSchedule={{...saveSchedule, savedAt }}
             />
             <Scheduler
                 view={view}
                 dayView={dayView}
-                saveSchedule={saveSchedule}
+                saveSchedule={{...saveSchedule, setSavedAt }}
             />
         </>)
     }

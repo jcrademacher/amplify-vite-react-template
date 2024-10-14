@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { analyze } from "../functions/analyze/resource";
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -7,6 +8,16 @@ specifies that any user authenticated via an API key can "create", "read",
 "update", and "delete" any "Todo" records.
 =========================================================================*/
 const schema = a.schema({
+
+    analyze: a
+        .query()
+        .arguments({
+            name: a.string(),
+        })
+        .returns(a.string())
+        .handler(a.handler.function(analyze))
+        .authorization((allow) => [allow.authenticated()]),
+
     Schedule: a
         .model({
             name: a.string().required(),
@@ -30,7 +41,7 @@ const schema = a.schema({
             activityPrototype: a.belongsTo('ActivityPrototype', 'activityPrototypeId')
         })
         .authorization((allow) => [allow.authenticated()]),
-    
+
     GlobalActivity: a.
         model({
             startTime: a.datetime().required(),

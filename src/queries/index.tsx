@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSchedule, getSchedules } from "../api/apiSchedule";
 import { ActivityPrototypeMap, getActivityPrototypesMapped } from "../api/apiActivityPrototype";
-import { getActivitiesMapped, getGlobalActivitiesMapped } from "../api/apiActivity"; 
+import { getActivitiesMapped, getAllActivitiesMapped, getGlobalActivitiesMapped } from "../api/apiActivity"; 
 
 export function useScheduleQuery(id: string) {
     return useQuery({
@@ -47,5 +47,15 @@ export function useGlobalActivitiesQuery(id: string, protos: ActivityPrototypeMa
         enabled: !!protos,
         staleTime: 60*1000,
         refetchOnWindowFocus: false
+    })
+}
+
+export function useAllActivityiesQuery(id: string, protos: ActivityPrototypeMap | undefined) {
+    return useQuery({
+        queryKey: ['allActivities', id],
+        queryFn: async () => getAllActivitiesMapped(id,protos as ActivityPrototypeMap),
+        enabled: !!protos,
+        staleTime: 60*1000,
+        refetchOnWindowFocus: true
     })
 }

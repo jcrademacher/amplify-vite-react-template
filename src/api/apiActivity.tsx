@@ -11,6 +11,11 @@ export type LocalLegActivity = Schema["LegActivity"]['createType'];
 export type GlobalActivity = Schema["GlobalActivity"]["type"];
 export type LocalGlobalActivity = Schema["GlobalActivity"]['createType'];
 
+export type AllActivities = {
+    acts: LocalIDMap<LocalLegActivity>
+    globalActs: TimeMap<LocalGlobalActivity>
+}
+
 export async function getActivities(proto: ActivityPrototype): Promise<LocalLegActivity[]> {
     const retval = await proto.activities();
 
@@ -21,6 +26,16 @@ export async function getActivities(proto: ActivityPrototype): Promise<LocalLegA
         console.log(retval.errors);
         throw new Error(retval.errors?.map((el) => el.message).join(','));
     }
+}
+
+export async function getAllActivitiesMapped(scheduleId: string, protos: ActivityPrototypeMap): Promise<AllActivities> {
+    let acts = await getActivitiesMapped(protos);
+    let gacts = await getGlobalActivitiesMapped(scheduleId);
+
+    return {
+        acts: acts,
+        globalActs: gacts
+    };
 }
 
 export async function getActivitiesMapped(protos: ActivityPrototypeMap): Promise<LocalIDMap<LocalLegActivity>> {

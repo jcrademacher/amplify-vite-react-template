@@ -24,7 +24,7 @@ import {
 import { useHistoryState } from '@uidotdev/usehooks';
 import { Schedule } from '../../api/apiSchedule';
 import { LocalLegActivity, LocalGlobalActivity, saveActivities } from '../../api/apiActivity';
-import { useActivityPrototypesQuery, useActivitiesQuery, useScheduleQuery, useGlobalActivitiesQuery } from '../../queries';
+import { useActivityPrototypesQuery, useActivitiesQuery, useScheduleQuery, useGlobalActivitiesQuery, useAllActivityiesQuery } from '../../queries';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useScheduleIDMatch } from '../../utils/router';
 
@@ -37,7 +37,8 @@ interface SchedulerProps {
     dayView: number,
     saveSchedule: {
         saving: boolean,
-        setSaving: (state: boolean) => void
+        setSaving: (state: boolean) => void,
+        setSavedAt: (time: moment.Moment | undefined) => void
     }
 }
 
@@ -47,8 +48,8 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
 
     const actProtoQuery = useActivityPrototypesQuery(scheduleId);
     const schQuery = useScheduleQuery(scheduleId);
-    const actQuery = useActivitiesQuery(scheduleId, actProtoQuery.data);
-    const gactQuery = useGlobalActivitiesQuery(scheduleId, actProtoQuery.data);
+
+    const actsQuery = useAllActivityiesQuery(scheduleId, actProtoQuery.data);
 
     const schedule: Schedule | null = schQuery.data ? schQuery.data : null;
 
@@ -70,14 +71,14 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
     const [syncState, setSyncState] = useState(false);
 
     useEffect(() => {
-        if (actQuery.data && gactQuery.data) {
+        if (actsQuery.data) {
             // console.log(actQuery.data);
             setLocalSch({
-                globalActs: { ...localSch.globalActs, ...gactQuery.data },
-                acts: { ...localSch.acts, ...actQuery.data }
+                globalActs: { ...localSch.globalActs, ...actsQuery.data.globalActs },
+                acts: { ...localSch.acts, ...actsQuery.data.acts }
             });
         }
-    }, [actQuery.data, gactQuery.data, syncState]);
+    }, [actsQuery.data, syncState]);
 
     const handleUndo = (evt: KeyboardEvent) => {
         evt.stopImmediatePropagation();
@@ -121,17 +122,17 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
 
     const saveSchMutation = useMutation({
         mutationKey: ['saveSchedule', scheduleId],
-        mutationFn: async () => saveActivities(actQuery.data, gactQuery.data, localSch.acts, localSch.globalActs),
+        mutationFn: async () => saveActivities(actsQuery.data?.acts, actsQuery.data?.globalActs, localSch.acts, localSch.globalActs),
         onSuccess: (data) => {
             // console.log("Success");
             saveSchedule.setSaving(false);
             // clear();
             // queryClient.invalidateQueries();
-            queryClient.setQueryData(['activity', scheduleId], data.acts);
-            queryClient.setQueryData(['globalActivity', scheduleId], data.gacts);
+            queryClient.setQueryData(['allActivities', scheduleId], { acts: data.acts, globalActs: data.gacts });
             setSyncState((s) => !s);
 
             emitToast("Changes saved", ToastType.Success);
+            saveSchedule.setSavedAt(moment());
         },
         onError: (error) => {
             saveSchedule.setSaving(false);
@@ -451,7 +452,7 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
                     {renderTimes()}
                     {renderProtoHeaders()}
                     {renderGlobalActivities()}
-                    {actQuery.isLoading || actQuery.isFetching || gactQuery.isLoading || gactQuery.isFetching || saveSchedule.saving ?
+                    {actsQuery.isLoading ?
                         <LoadingActivitiesView rows={thisDayEnd.diff(thisDayStart, 'hours', true) * 2} cols={Object.keys(activities).length} /> :
                         Object.values(activities).map(renderColumn)
                     }
