@@ -1,16 +1,14 @@
 import '../styles/home.scss';
 import 'react-toastify/dist/ReactToastify.css';
 import Button from 'react-bootstrap/Button';
-import { faCircleExclamation, faCircleInfo, faCircleXmark, faGear, faInfo, faMagnifyingGlass, faTriangleExclamation, faWrench } from '@fortawesome/free-solid-svg-icons';
+import { faCircleInfo, faCircleXmark, faGear, faTriangleExclamation, faWrench } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState } from 'react';
 import { Scheduler } from '../components/scheduler';
 import Settings from '../components/settings';
 import moment from 'moment';
 
-import { useMutationState } from '@tanstack/react-query';
-
-import { useAllActivityiesQuery, useActivityPrototypesQuery } from '../queries';
+import { analyzeSchedule } from '../api/apiSchedule';
 
 export enum View {
     MASTER = "Master",
@@ -33,7 +31,9 @@ type StatusBarProps = {
 }
 
 function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSchedule }: StatusBarProps) {
-    let startDate = startDates[0];
+    let startDate = startDates[0];    
+    const match = useScheduleIDMatch();
+    const scheduleId = match?.params.scheduleId as string;
     
     let { saving, savedAt } = saveSchedule;
 
@@ -96,7 +96,7 @@ function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSched
                     </Button>
                     <Button
                         variant='light'
-                        onClick={() => { }}
+                        onClick={() => { analyzeSchedule(scheduleId) }}
                     >
                         <FontAwesomeIcon style={{ marginRight: "5px" }} icon={faWrench} />
                         Analyze

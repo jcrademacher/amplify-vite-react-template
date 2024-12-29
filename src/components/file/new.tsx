@@ -14,7 +14,8 @@ import { emitToast, ToastType } from "../notifications";
 
 import '../../styles/filenew.scss';
 
-import { timeFormatKey, startTimeOptions, endTimeOptions, ScheduleSettings } from '../forms';
+import { timeFormatKey, startTimeOptions, endTimeOptions } from '../../utils/time';
+import { ScheduleSettings } from "../forms";
 
 interface FileNewModalProps {
     handleCancel: () => void

@@ -27,6 +27,7 @@ import { LocalLegActivity, LocalGlobalActivity, saveActivities } from '../../api
 import { useActivityPrototypesQuery, useActivitiesQuery, useScheduleQuery, useGlobalActivitiesQuery, useAllActivityiesQuery } from '../../queries';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useScheduleIDMatch } from '../../utils/router';
+import { createTime } from '../../utils/time';
 
 import { emitToast, ToastType } from '../notifications';
 
@@ -113,8 +114,9 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
     });
     // const [thisDayStart, setThisDayStart] = useState<moment.Moment>(initDate);
 
-    let thisDayStart = moment(schedule?.startDates[dayView - 1]);
-    let thisDayEnd = moment(schedule?.endDates[dayView - 1]);
+    let thisDayStart = createTime(schedule?.startDates[dayView - 1]);
+    let thisDayEnd = createTime(schedule?.endDates[dayView - 1]);
+    // console.log(thisDayStart);
 
     // const testGactStart = times[4].clone();
     // testGactStart.add(1,"day");
@@ -132,7 +134,7 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
             setSyncState((s) => !s);
 
             emitToast("Changes saved", ToastType.Success);
-            saveSchedule.setSavedAt(moment());
+            saveSchedule.setSavedAt(createTime());
         },
         onError: (error) => {
             saveSchedule.setSaving(false);
@@ -307,7 +309,7 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
         let retval = [];
         for (let key in localSch.globalActs) {
             let gact = localSch.globalActs[key];
-            let startTime = moment(gact.startTime)
+            let startTime = createTime(gact.startTime)
             let timeIndex = startTime.diff(thisDayStart, 'hours', true) * 2;
 
             if (startTime.isSame(thisDayStart, 'date')) {
@@ -334,7 +336,7 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
         let retval = [];
 
         while (time.diff(thisDayEnd) < 0) {
-            retval.push(<div className="time" key={time.toISOString()}>{time.format('h:mm A')}</div>);
+            retval.push(<div className="time" key={time.toISOString()}>{timeFormatLocal(time)}</div>);
             time.add(30, 'minutes');
         }
 
@@ -377,7 +379,7 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
             let timeKey = time.toISOString();
 
             let gact = localSch.globalActs[timeKey];
-            let gactStartTime = moment(gact?.startTime);
+            let gactStartTime = createTime(gact?.startTime);
 
             if (gact?.startTime && gactStartTime.isSame(time)) {
                 // console.log(i);
@@ -389,7 +391,7 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
             }
 
             let act = thisActs ? thisActs[timeKey] : undefined;
-            let actTime = moment(act?.startTime);
+            let actTime = createTime(act?.startTime);
 
             let schEl;
 
@@ -468,6 +470,7 @@ interface LoadingActivitiesViewProps {
 }
 
 import { Spinner } from 'react-bootstrap';
+import { timeFormatLocal } from '../../utils/time';
 
 function LoadingActivitiesView({ rows, cols }: LoadingActivitiesViewProps) {
     // let retval: JSX.Element[] = [];

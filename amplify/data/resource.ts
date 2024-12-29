@@ -9,11 +9,17 @@ specifies that any user authenticated via an API key can "create", "read",
 =========================================================================*/
 const schema = a.schema({
 
+    AnalysisErrorLocation: a.customType({
+        
+    }),    
+
+    AnalysisResult: a.customType({
+
+    }),
+
     analyze: a
         .query()
-        .arguments({
-            name: a.string(),
-        })
+        .arguments({ scheduleId: a.string().required() })
         .returns(a.string())
         .handler(a.handler.function(analyze))
         .authorization((allow) => [allow.authenticated()]),
@@ -67,7 +73,7 @@ const schema = a.schema({
             isRequired: a.boolean().required()
         })
         .authorization((allow) => [allow.authenticated()])
-});
+}).authorization((allow) => [allow.resource(analyze)]);
 
 export type Schema = ClientSchema<typeof schema>;
 

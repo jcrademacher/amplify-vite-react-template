@@ -14,7 +14,7 @@ import { useScheduleIDMatch } from '../utils/router';
 
 import moment from 'moment';
 
-import { timeFormatKey, startTimeOptions, endTimeOptions } from './forms';
+import { timeFormatKey, startTimeOptions, endTimeOptions, createTime, timeFormatLocal } from '../utils/time';
 
 type ActivityPrototype = Schema["ActivityPrototype"]["type"]
 
@@ -183,7 +183,7 @@ function GeneralSettings() {
 
     const schQuery = useScheduleQuery(scheduleId);
 
-    const endTime = moment(schQuery.data?.endDates[schQuery.data?.endDates.length-1]);
+    const endTime = createTime(schQuery.data?.endDates[schQuery.data?.endDates.length-1]);
     endTime.subtract(30,'minutes');
 
     const {
@@ -192,10 +192,10 @@ function GeneralSettings() {
         formState: { errors }
     } = useForm<ScheduleSettings>({ values: {
         name: schQuery.data?.name ? schQuery.data.name : undefined,
-        startDate: moment(schQuery.data?.startDates[0]).format("YYYY-MM-DD"),
-        endDate: moment(schQuery.data?.endDates[schQuery.data?.endDates.length-1]).format("YYYY-MM-DD"),
-        startTime: timeFormatKey(moment(schQuery.data?.startDates[0])),
-        endTime: timeFormatKey(endTime)
+        startDate: createTime(schQuery.data?.startDates[0]).format("YYYY-MM-DD"),
+        endDate: createTime(schQuery.data?.endDates[schQuery.data?.endDates.length-1]).format("YYYY-MM-DD"),
+        startTime: timeFormatLocal(createTime(schQuery.data?.startDates[0])),
+        endTime: timeFormatLocal(endTime)
     } });
 
 
@@ -221,12 +221,15 @@ function GeneralSettings() {
 
     const [saving, setSaving] = useState(false);
 
-    const validateTimes: Validate<string | undefined, ScheduleSettings> = (_, formValues) => {
-        let startTime = moment(formValues.startTime, "hh:mm A");
-        let endTime = moment(formValues.endTime, "hh:mm A");
+    // const validateTimes: Validate<string | undefined, ScheduleSettings> = (_, formValues) => {
+    //     let startTime = createTime(formValues.startTime);
+    //     let endTime = createTime(formValues.endTime);
 
-        return startTime && endTime && startTime.diff(endTime) < 0;
-    }
+    //     // console.log("Start Time", startTime);
+    //     // console.log("End Time", endTime);
+
+    //     return startTime && endTime && startTime.diff(endTime) < 0;
+    // }
 
     const validateDates: Validate<string | undefined, ScheduleSettings> = (_, formValues) => {
         let startDate = moment(formValues.startDate, "YYYY-MM-DD");
@@ -240,6 +243,9 @@ function GeneralSettings() {
         setSaving(true);
 
         const { startDates, endDates } = convertFormToDates(data);
+
+        // console.log("Start Date", startDates);
+        // console.log("End Date", endDates);
 
         mutation.mutate({
             name: data.name,
@@ -283,13 +289,11 @@ function GeneralSettings() {
                     <Col>
                         <Form.Group className="form-group">
                             <Form.Label>Start Time</Form.Label>
-                            <Form.Select {...register("startTime", {
-                                validate: validateTimes
-                            })}
+                            <Form.Select {...register("startTime")}
                                 isInvalid={!!errors.startTime}
 
                             >
-                                {startTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                                {startTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatLocal(el)}>{timeFormatLocal(el)}</option>)}
                             </Form.Select>
                             <Form.Text>The time that the schedule should start from each day</Form.Text>
                             <Form.Control.Feedback type="invalid">
@@ -301,7 +305,7 @@ function GeneralSettings() {
                         <Form.Group className="form-group">
                             <Form.Label>End Time</Form.Label>
                             <Form.Select {...register("endTime", { required: true })} isInvalid={!!errors.startTime}>
-                                {endTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatKey(el)}>{el.format("h:mm A")}</option>)}
+                                {endTimeOptions.map((el, _) => <option key={timeFormatKey(el)} value={timeFormatLocal(el)}>{timeFormatLocal(el)}</option>)}
                             </Form.Select>
                             <Form.Text>The time that the schedule should end at each day</Form.Text>
                             <Form.Control.Feedback type="invalid">

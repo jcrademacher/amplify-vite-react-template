@@ -1,4 +1,4 @@
-@import './colors.scss';
+@use 'colors.scss';
 #settings {
     display: flex;
     flex-direction: row;

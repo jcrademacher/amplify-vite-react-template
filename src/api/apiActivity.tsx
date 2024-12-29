@@ -216,7 +216,7 @@ export async function saveActivities(oldActs: LocalIDMap<LocalLegActivity>| unde
             updatedGacts[time] = retval.data;
     }
 
-    console.log(updatedGacts);
+    // console.log(updatedGacts);
 
     return {
         acts: updatedActs,
