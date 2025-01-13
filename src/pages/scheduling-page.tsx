@@ -4,7 +4,7 @@ import Button from 'react-bootstrap/Button';
 import { faCircleInfo, faCircleXmark, faGear, faTriangleExclamation, faWrench } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState } from 'react';
-import { Scheduler } from '../components/scheduler';
+import { Scheduler, SchedulerRef } from '../components/scheduler';
 import Settings from '../components/settings';
 import moment from 'moment';
 
@@ -22,23 +22,20 @@ type StatusBarProps = {
     setView: (view: View) => void,
     dayView: number,
     setDayView: (day: number) => void,
-    setShowSettings: (show: boolean) => void,
-    saveSchedule: {
-        saving: boolean,
-        setSaving: (saving: boolean) => void,
-        savedAt: moment.Moment | undefined
-    }
+    setShowSettings: (show: boolean) => void
 }
 
-function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSchedule }: StatusBarProps) {
-    let startDate = startDates[0];    
+function StatusBar({ startDates, dayView, setDayView, setShowSettings }: StatusBarProps) {
+    let startDate = startDates[0];
     const match = useScheduleIDMatch();
     const scheduleId = match?.params.scheduleId as string;
-    
-    let { saving, savedAt } = saveSchedule;
+
+    const fileContext = useFileContext();
+
+    let { saving, savedAt } = fileContext;
 
     let renderSave = () => {
-        if(saving) {
+        if (saving) {
             return (
                 <Spinner
                     as="span"
@@ -48,7 +45,7 @@ function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSched
                 />
             );
         }
-        else if(savedAt) {
+        else if (savedAt) {
             return <span>{savedAt.format(" MMM Do [at] h:mm:ss a")}</span>;
         }
         else {
@@ -84,7 +81,7 @@ function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSched
                         <span>0</span>
                     </div>
                     <span id='last-saved'>Last saved:&nbsp;{renderSave()}</span>
-                    
+
                 </div>
                 <div id='action-btns'>
                     <Button
@@ -124,36 +121,16 @@ function StatusBar({ startDates, dayView, setDayView, setShowSettings, saveSched
     )
 }
 
-interface SchedulingPageProps {
-    saveSchedule: {
-        saving: boolean,
-        setSaving: (state: boolean) => void
-    }
-}
-
-export default function SchedulingPage({ saveSchedule }: SchedulingPageProps) {
-    // const notify = (message: string) => toast(message);
-    return (
-        <div id="home-page">
-            <div id="content">
-                <ScheduleView saveSchedule={saveSchedule} />
-            </div>
-        </div>
-    )
-}
-
 import { useScheduleQuery } from '../queries';
 import { useScheduleIDMatch } from '../utils/router';
 import { Spinner } from 'react-bootstrap';
+import { useFileContext } from '../components/file/context-provider';
 
 interface ScheduleViewProps {
-    saveSchedule: {
-        saving: boolean,
-        setSaving: (state: boolean) => void
-    }
+    saveRef: React.Ref<SchedulerRef>
 }
 
-function ScheduleView({ saveSchedule }: ScheduleViewProps) {
+export default function ScheduleView({ saveRef }: ScheduleViewProps) {
     const [view, setView] = useState<View>(View.MASTER);
     const [dayView, setDayView] = useState<number>(1);
     // const [activities, setActivities] = useState<Schema["ActivityPrototype"]["type"][]>([]);
@@ -163,8 +140,6 @@ function ScheduleView({ saveSchedule }: ScheduleViewProps) {
     const scheduleId = match?.params.scheduleId as string;
 
     const query = useScheduleQuery(scheduleId);
-
-    const [savedAt, setSavedAt] = useState<moment.Moment | undefined>(undefined);
 
 
     // useEffect(() => {
@@ -180,12 +155,14 @@ function ScheduleView({ saveSchedule }: ScheduleViewProps) {
 
     else if (query.isSuccess) {
 
-        return (<>
-            <Settings
-                show={showSettings}
-                handleClose={() => setShowSettings(false)}
-            />
-            {/* <div>
+        return (
+            <div id="home-page">
+                <div id="content">
+                    <Settings
+                        show={showSettings}
+                        handleClose={() => setShowSettings(false)}
+                    />
+                    {/* <div>
                         <Button className="btn-stick-left">New Schedule</Button>
                         <Button className="btn-stick-left" variant="light">Open Schedule</Button>
                         <Button
@@ -202,20 +179,20 @@ function ScheduleView({ saveSchedule }: ScheduleViewProps) {
                         </Button>
                     </div>
                     <div className="separator" /> */}
-            <StatusBar
-                view={view}
-                setView={setView}
-                dayView={dayView}
-                setDayView={setDayView}
-                setShowSettings={setShowSettings}
-                startDates={query.data.startDates.map((el) => moment(el))}
-                saveSchedule={{...saveSchedule, savedAt }}
-            />
-            <Scheduler
-                view={view}
-                dayView={dayView}
-                saveSchedule={{...saveSchedule, setSavedAt }}
-            />
-        </>)
+                    <StatusBar
+                        view={view}
+                        setView={setView}
+                        dayView={dayView}
+                        setDayView={setDayView}
+                        setShowSettings={setShowSettings}
+                        startDates={query.data.startDates.map((el) => moment(el))}
+                    />
+                    <Scheduler
+                        view={view}
+                        dayView={dayView}
+                        ref={saveRef}
+                    />
+                </div>
+            </div>)
     }
 }

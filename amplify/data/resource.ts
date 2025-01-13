@@ -9,13 +9,13 @@ specifies that any user authenticated via an API key can "create", "read",
 =========================================================================*/
 const schema = a.schema({
 
-    AnalysisErrorLocation: a.customType({
+    // AnalysisErrorLocation: a.customType({
         
-    }),    
+    // }),    
 
-    AnalysisResult: a.customType({
+    // AnalysisResult: a.customType({
 
-    }),
+    // }),
 
     analyze: a
         .query()

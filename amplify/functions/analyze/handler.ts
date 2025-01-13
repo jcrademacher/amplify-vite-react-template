@@ -23,6 +23,7 @@ export const handler: Schema["analyze"]["functionHandler"] = async (event, conte
         console.log(retval.errors);
         throw new Error(retval.errors?.map((el) => el.message).join(','));
     }
+
     
 
     return 'Hello, World!';

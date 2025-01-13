@@ -1,6 +1,6 @@
 import { View } from '../../pages/scheduling-page'
 import '../../styles/scheduler.scss'
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import moment from 'moment';
 import { checkActivityCreate, checkGlobalActivityCreate, ScheduledGlobalActivity } from './activities';
 
@@ -24,7 +24,7 @@ import {
 import { useHistoryState } from '@uidotdev/usehooks';
 import { Schedule } from '../../api/apiSchedule';
 import { LocalLegActivity, LocalGlobalActivity, saveActivities } from '../../api/apiActivity';
-import { useActivityPrototypesQuery, useActivitiesQuery, useScheduleQuery, useGlobalActivitiesQuery, useAllActivityiesQuery } from '../../queries';
+import { useActivityPrototypesQuery, useActivitiesQuery, useScheduleQuery, useGlobalActivitiesQuery, useAllActivitiesQuery } from '../../queries';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useScheduleIDMatch } from '../../utils/router';
 import { createTime } from '../../utils/time';
@@ -35,24 +35,28 @@ import { emitToast, ToastType } from '../notifications';
 
 interface SchedulerProps {
     view: View,
-    dayView: number,
-    saveSchedule: {
-        saving: boolean,
-        setSaving: (state: boolean) => void,
-        setSavedAt: (time: moment.Moment | undefined) => void
-    }
+    dayView: number
 }
 
-export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
+export interface SchedulerRef {
+    save: () => Promise<void>;
+}
+
+export const Scheduler = forwardRef<SchedulerRef, SchedulerProps>((props,ref) => {
     const match = useScheduleIDMatch();
     const scheduleId = match?.params.scheduleId as string;
 
+    let { dayView } = props;
+
+    // queries
     const actProtoQuery = useActivityPrototypesQuery(scheduleId);
     const schQuery = useScheduleQuery(scheduleId);
-
-    const actsQuery = useAllActivityiesQuery(scheduleId, actProtoQuery.data);
+    const actsQuery = useAllActivitiesQuery(scheduleId, actProtoQuery.data);
 
     const schedule: Schedule | null = schQuery.data ? schQuery.data : null;
+
+    // context
+    const fileContext = useFileContext();
 
     const activities = actProtoQuery.data ? actProtoQuery.data : {};
 
@@ -127,31 +131,30 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
         mutationFn: async () => saveActivities(actsQuery.data?.acts, actsQuery.data?.globalActs, localSch.acts, localSch.globalActs),
         onSuccess: (data) => {
             // console.log("Success");
-            saveSchedule.setSaving(false);
+            fileContext.setSaving(false);
             // clear();
             // queryClient.invalidateQueries();
             queryClient.setQueryData(['allActivities', scheduleId], { acts: data.acts, globalActs: data.gacts });
             setSyncState((s) => !s);
 
             emitToast("Changes saved", ToastType.Success);
-            saveSchedule.setSavedAt(createTime());
+            fileContext.setSavedAt(createTime());
         },
         onError: (error) => {
-            saveSchedule.setSaving(false);
+            fileContext.setSaving(false);
             setSyncState((s) => !s);
             emitToast(`Error saving schedule: ${error.message}`, ToastType.Error);
         },
         onMutate: () => {
+            fileContext.setSaving(true);
         }
     });
 
-    useEffect(() => {
-        if (saveSchedule.saving) {
-            // console.log("saving");
-            saveSchMutation.mutate();
+    useImperativeHandle(ref, () => ({
+        save: async () => {
+            await saveSchMutation.mutateAsync();
         }
-
-    }, [saveSchedule.saving]);
+    }));
 
     const handleMoveActivity = (newId: string, newTime: moment.Moment, oldAct: LocalLegActivity) => {
         let newActs = localSch.acts[newId] ? { ...localSch.acts[newId] } : {};
@@ -462,7 +465,8 @@ export function Scheduler({ dayView, saveSchedule }: SchedulerProps) {
             </DndProvider>
         )
     }
-}
+});
+
 
 interface LoadingActivitiesViewProps {
     rows: number,
@@ -471,6 +475,7 @@ interface LoadingActivitiesViewProps {
 
 import { Spinner } from 'react-bootstrap';
 import { timeFormatLocal } from '../../utils/time';
+import { useFileContext } from '../file/context-provider';
 
 function LoadingActivitiesView({ rows, cols }: LoadingActivitiesViewProps) {
     // let retval: JSX.Element[] = [];
