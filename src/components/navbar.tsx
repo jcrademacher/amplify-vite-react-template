@@ -2,7 +2,7 @@ import '../styles/navbar.scss';
 import { UseAuthenticator } from '@aws-amplify/ui-react';
 import { Dropdown } from 'react-bootstrap';
 import { useAllActivitiesQuery, useScheduleQuery, useActivityPrototypesQuery } from '../queries';
-import ExcelJS from 'exceljs';
+import { exportScheduleAsXLSX } from './file/exporter';
 
 interface NavBarProps {
     signOut: UseAuthenticator["signOut"] | undefined;
@@ -64,66 +64,8 @@ function NavBar({ signOut, handleFileNew, handleFileOpen, handleSave }: NavBarPr
     const exportAction = async () => {
         await handleSave();
     
-        if (actsQuery.data && schQuery.data) {
-            // Create a new workbook and worksheet
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet(schQuery.data.name);
-    
-            // Set up the headers
-            worksheet.columns = [
-                { header: 'Activity Name', key: 'name', width: 30 },
-                { header: 'Start Time', key: 'startTime', width: 20 },
-                { header: 'End Time', key: 'endTime', width: 20 },
-                { header: 'Location', key: 'location', width: 20 },
-                { header: 'Description', key: 'description', width: 40 }
-            ];
-    
-            // Style the header row
-            worksheet.getRow(1).font = { bold: true };
-            worksheet.getRow(1).fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFE0E0E0' }
-            };
-    
-            // Add the activities data
-            // const rows = actsQuery.data.acts.list()map(activity => ({
-            //     name: activity.name,
-            //     startTime: new Date(activity.startTime).toLocaleString(),
-            //     endTime: new Date(activity.endTime).toLocaleString(),
-            //     location: activity.location || '',
-            //     description: activity.description || ''
-            // }));
-    
-            // worksheet.addRows(rows);
-    
-            // // Add schedule information at the bottom
-            // worksheet.addRow([]); // Empty row for spacing
-            // worksheet.addRow(['Schedule Name:', schQuery.data.name]);
-            // worksheet.addRow(['Schedule Description:', schQuery.data.description || '']);
-    
-            // // Auto-fit columns
-            // worksheet.columns.forEach(column => {
-            //     column.width = Math.max(
-            //         column.width || 10,
-            //         ...worksheet.getColumn(column.key).values
-            //             .map(v => v ? v.toString().length : 0)
-            //     );
-            // });
-    
-            // // Generate and download the file
-            // const buffer = await workbook.xlsx.writeBuffer();
-            // const blob = new Blob([buffer], { 
-            //     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-            // });
-            // const url = URL.createObjectURL(blob);
-            // const link = document.createElement('a');
-            // link.href = url;
-            // link.download = `${schQuery.data.name}.xlsx`;
-            // document.body.appendChild(link);
-            // link.click();
-            // document.body.removeChild(link);
-            // URL.revokeObjectURL(url);
+        if (actsQuery.data && schQuery.data && actProtoQuery.data) {
+            exportScheduleAsXLSX(actProtoQuery.data, actsQuery.data, schQuery.data);
         }
     }
 

@@ -1,4 +1,5 @@
 import moment from "moment-timezone";
+import { Schedule } from "../api/apiSchedule";
 
 export const TIMEZONE = 'America/New_York';
 
@@ -26,3 +27,29 @@ export const timeFormatLocal = (time: moment.Moment) => time.clone().tz(TIMEZONE
 export function createTime(t?: string | undefined) {
     return t ? moment.tz(t,TIMEZONE) : moment();
 }
+
+export function getTimeSlots(schedule: Schedule, dayIndex: number) {
+    let numDays = schedule.startDates.length;
+
+    if(dayIndex < 0 || dayIndex >= numDays) {
+        throw new Error("Day out of range");
+    }
+
+    let startTime = createTime(schedule.startDates[dayIndex]);
+    let endTime = createTime(schedule.endDates[dayIndex]);
+
+    let cur = startTime.clone();
+    let retval: moment.Moment[] = []
+
+    while(cur.diff(endTime) < 0) {
+        retval.push(cur.clone())
+        cur.add(30, 'minutes');
+    }
+
+    return retval
+}
+
+export function getSlotDiff(t1: moment.Moment, t2: moment.Moment) {
+    return t1.diff(t2, 'hours', true) * 2;
+}
+
